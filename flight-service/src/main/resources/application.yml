@@ -1,0 +1,28 @@
+server:
+  port: ${FLIGHT_SERVICE_PORT:8081}
+
+spring:
+  application:
+    name: flight-service
+  datasource:
+    url: ${FLIGHTS_DB_URL}
+    username: ${FLIGHTS_DB_USER}
+    password: ${FLIGHTS_DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # el esquema lo manejan SOLO las migraciones Flyway
+  flyway:
+    enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Con jwk-set-uri + issuer-uri, Spring toma las claves de jwk-set-uri
+          # y valida el "iss" del token contra issuer-uri, sin consultar discovery.
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"

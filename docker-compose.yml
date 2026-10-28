@@ -1,0 +1,98 @@
+# Infraestructura (siempre):  docker compose up -d
+#   -> flights-db, reservations-db y keycloak. Los servicios se corren con Maven.
+# Sistema completo:           docker compose --profile apps up -d --build
+#   -> además construye y levanta flight-service y reservation-service.
+services:
+  flights-db:
+    image: postgres:16
+    container_name: aerogest-flights-db
+    environment:
+      POSTGRES_DB: ${FLIGHTS_DB_NAME}
+      POSTGRES_USER: ${FLIGHTS_DB_USER}
+      POSTGRES_PASSWORD: ${FLIGHTS_DB_PASSWORD}
+    ports:
+      - "${FLIGHTS_DB_PORT}:5432"
+    volumes:
+      - flights-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${FLIGHTS_DB_USER} -d ${FLIGHTS_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  reservations-db:
+    image: postgres:16
+    container_name: aerogest-reservations-db
+    environment:
+      POSTGRES_DB: ${RESERVATIONS_DB_NAME}
+      POSTGRES_USER: ${RESERVATIONS_DB_USER}
+      POSTGRES_PASSWORD: ${RESERVATIONS_DB_PASSWORD}
+    ports:
+      - "${RESERVATIONS_DB_PORT}:5432"
+    volumes:
+      - reservations-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${RESERVATIONS_DB_USER} -d ${RESERVATIONS_DB_NAME}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    container_name: aerogest-keycloak
+    # Modo desarrollo: almacenamiento embebido y sin persistencia entre reinicios.
+    # El realm se vuelve a importar desde keycloak/aerogest-realm.json en cada arranque limpio.
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      # Fija el "issuer" de los tokens (siempre localhost) y permite que los contenedores
+      # hablen con Keycloak por http://keycloak:8080 sin que cambie el issuer.
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      # Variables que el realm importado reemplaza dentro del JSON
+      RESERVATION_CLIENT_SECRET: ${RESERVATION_CLIENT_SECRET}
+      DEMO_ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD}
+      DEMO_USER_PASSWORD: ${DEMO_USER_PASSWORD}
+    ports:
+      - "${KEYCLOAK_PORT}:8080"
+    volumes:
+      - ./keycloak/aerogest-realm.json:/opt/keycloak/data/import/aerogest-realm.json:ro
+
+  flight-service:
+    profiles: ["apps"]
+    build: ./flight-service
+    container_name: aerogest-flight-service
+    env_file: .env
+    environment:
+      FLIGHTS_DB_URL: jdbc:postgresql://flights-db:5432/${FLIGHTS_DB_NAME}
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/aerogest/protocol/openid-connect/certs
+    ports:
+      - "8081:8081"
+    depends_on:
+      flights-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  reservation-service:
+    profiles: ["apps"]
+    build: ./reservation-service
+    container_name: aerogest-reservation-service
+    env_file: .env
+    environment:
+      RESERVATIONS_DB_URL: jdbc:postgresql://reservations-db:5432/${RESERVATIONS_DB_NAME}
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/aerogest/protocol/openid-connect/certs
+      KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/aerogest/protocol/openid-connect/token
+      FLIGHT_SERVICE_BASE_URL: http://flight-service:8081
+    ports:
+      - "8082:8082"
+    depends_on:
+      reservations-db:
+        condition: service_healthy
+      keycloak:
+        condition: service_started
+
+volumes:
+  flights-data:
+  reservations-data:

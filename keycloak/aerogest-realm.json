@@ -1,0 +1,78 @@
+{
+  "realm": "aerogest",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "accessTokenLifespan": 1800,
+  "roles": {
+    "realm": [
+      { "name": "ADMIN",   "description": "Administra vuelos y ve todas las reservas" },
+      { "name": "USER",    "description": "Consulta vuelos y gestiona sus propias reservas" },
+      { "name": "SERVICE", "description": "Credencial interna: Reservation Service -> Flight Service" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "aerogest-api",
+      "name": "AeroGest API (Postman / Swagger, solo demostración)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "redirectUris": ["http://localhost:8081/*", "http://localhost:8082/*"],
+      "webOrigins": ["+"]
+    },
+    {
+      "clientId": "reservation-service",
+      "name": "Reservation Service (credencial de servicio)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${RESERVATION_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-reservation-service",
+      "enabled": true,
+      "serviceAccountClientId": "reservation-service",
+      "realmRoles": ["SERVICE"]
+    },
+    {
+      "username": "admin",
+      "enabled": true,
+      "email": "admin@aerogest.local",
+      "emailVerified": true,
+      "firstName": "Admin",
+      "lastName": "AeroGest",
+      "credentials": [{ "type": "password", "value": "${DEMO_ADMIN_PASSWORD}", "temporary": false }],
+      "realmRoles": ["ADMIN"]
+    },
+    {
+      "username": "user1",
+      "enabled": true,
+      "email": "user1@aerogest.local",
+      "emailVerified": true,
+      "firstName": "Usuario",
+      "lastName": "Uno",
+      "credentials": [{ "type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["USER"]
+    },
+    {
+      "username": "user2",
+      "enabled": true,
+      "email": "user2@aerogest.local",
+      "emailVerified": true,
+      "firstName": "Usuario",
+      "lastName": "Dos",
+      "credentials": [{ "type": "password", "value": "${DEMO_USER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["USER"]
+    }
+  ]
+}

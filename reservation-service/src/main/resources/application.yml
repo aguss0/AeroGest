@@ -1,0 +1,37 @@
+server:
+  port: ${RESERVATION_SERVICE_PORT:8082}
+
+spring:
+  application:
+    name: reservation-service
+  datasource:
+    url: ${RESERVATIONS_DB_URL}
+    username: ${RESERVATIONS_DB_USER}
+    password: ${RESERVATIONS_DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate   # el esquema lo manejan SOLO las migraciones Flyway
+  flyway:
+    enabled: true
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+
+aerogest:
+  keycloak:
+    # Credencial de servicio para llamar a /internal/** de Flight Service
+    token-uri: ${KEYCLOAK_TOKEN_URI}
+    client-id: ${RESERVATION_CLIENT_ID}
+    client-secret: ${RESERVATION_CLIENT_SECRET}
+  flight-service:
+    base-url: ${FLIGHT_SERVICE_BASE_URL:http://localhost:8081}
+    connect-timeout-ms: ${FLIGHT_SERVICE_CONNECT_TIMEOUT_MS:2000}
+    read-timeout-ms: ${FLIGHT_SERVICE_READ_TIMEOUT_MS:3000}
+
+logging:
+  pattern:
+    level: "%5p [%X{correlationId:-}]"
