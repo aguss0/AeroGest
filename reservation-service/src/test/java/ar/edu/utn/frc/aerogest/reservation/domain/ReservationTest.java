@@ -104,6 +104,18 @@ class ReservationTest {
     }
 
     @Test
+    void verificarSiSePuedeCancelarNoModificaLaReserva() {
+        Reservation confirmed = newReservation();
+        confirmed.confirm(NOW);
+        confirmed.checkCancellable();
+        assertThat(confirmed.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+
+        Reservation pending = newReservation();
+        assertInvalidState(pending::checkCancellable);
+        assertThat(pending.getStatus()).isEqualTo(ReservationStatus.PENDING);
+    }
+
+    @Test
     void sabeAQuienPertenece_RN09() {
         Reservation reservation = newReservation();
 

@@ -25,6 +25,8 @@ import java.util.UUID;
 @Table(name = "reservations")
 public class Reservation {
 
+    private static final String CANCEL_MESSAGE = "Solo se puede cancelar una reserva confirmada";
+
     @Id
     private UUID id;
 
@@ -84,8 +86,15 @@ public class Reservation {
 
     /** RN-07: solo una reserva confirmada se puede cancelar; cancelar de nuevo no es válido. */
     public void cancel(Instant now) {
-        transitionTo(ReservationStatus.CANCELLED, now,
-                "Solo se puede cancelar una reserva confirmada");
+        transitionTo(ReservationStatus.CANCELLED, now, CANCEL_MESSAGE);
+    }
+
+    /**
+     * Verifica sin modificar nada que la reserva se pueda cancelar. El servicio lo usa antes de
+     * liberar la plaza en Flight Service, para no llamarlo por una cancelación inválida.
+     */
+    public void checkCancellable() {
+        ensureCanTransitionTo(ReservationStatus.CANCELLED, CANCEL_MESSAGE);
     }
 
     public boolean isOwnedBy(String userId) {
@@ -93,12 +102,16 @@ public class Reservation {
     }
 
     private void transitionTo(ReservationStatus target, Instant now, String message) {
+        ensureCanTransitionTo(target, message);
+        this.status = target;
+        this.updatedAt = now;
+    }
+
+    private void ensureCanTransitionTo(ReservationStatus target, String message) {
         if (!status.canTransitionTo(target)) {
             throw new BusinessRuleException(ErrorCode.INVALID_RESERVATION_STATE,
                     message + " (estado actual: " + status + ")");
         }
-        this.status = target;
-        this.updatedAt = now;
     }
 
     public UUID getId() { return id; }

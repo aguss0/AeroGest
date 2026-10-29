@@ -31,6 +31,12 @@ aerogest:
     base-url: ${FLIGHT_SERVICE_BASE_URL:http://localhost:8081}
     connect-timeout-ms: ${FLIGHT_SERVICE_CONNECT_TIMEOUT_MS:2000}
     read-timeout-ms: ${FLIGHT_SERVICE_READ_TIMEOUT_MS:3000}
+  reconciliation:
+    # Resuelve reservas PENDING que quedaron sin respuesta de Flight Service (ADR 0001, decisión 6)
+    enabled: true
+    interval: PT1M
+    pending-timeout: PT5M
+    batch-size: 50
 
 logging:
   pattern:
