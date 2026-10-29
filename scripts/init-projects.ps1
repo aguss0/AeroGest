@@ -1,4 +1,4 @@
-# Genera los esqueletos Maven de ambos servicios con Spring Initializr
+﻿# Genera los esqueletos Maven de ambos servicios con Spring Initializr
 # y los copia a flight-service/ y reservation-service/ SIN pisar los archivos de este repo.
 # Uso (desde la raíz del repo):  .\scripts\init-projects.ps1
 param([string]$BootVersion = "4.1.2")

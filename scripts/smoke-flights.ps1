@@ -1,4 +1,4 @@
-# Prueba de humo de Flight Service contra los servicios reales (Keycloak + Flight Service en marcha).
+﻿# Prueba de humo de Flight Service contra los servicios reales (Keycloak + Flight Service en marcha).
 # Uso (desde la raíz del repo, con el .env cargado):
 #   . .\scripts\load-env.ps1
 #   .\scripts\smoke-flights.ps1

@@ -1,4 +1,4 @@
-# Carga las variables de ../.env en la sesión actual de PowerShell.
+﻿# Carga las variables de ../.env en la sesión actual de PowerShell.
 # Uso (desde la raíz del repo):  . .\scripts\load-env.ps1
 $envFile = Join-Path $PSScriptRoot "..\.env"
 if (-not (Test-Path $envFile)) { throw "No existe .env. Copiá .env.example como .env primero." }

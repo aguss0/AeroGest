@@ -1,8 +1,17 @@
 package ar.edu.utn.frc.aerogest.reservation;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import ar.edu.utn.frc.aerogest.reservation.client.FlightGateway;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.TimeZone;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -73,5 +82,47 @@ abstract class AbstractIntegrationTest {
 
     protected int passengerCount() {
         return jdbc.queryForObject("select count(*) from passengers", Integer.class);
+    }
+
+    // ---------- concurrencia ----------
+
+    /** Una solicitud HTTP que devuelve su código de estado. */
+    @FunctionalInterface
+    protected interface Request {
+        int run(int index) throws Exception;
+    }
+
+    /**
+     * Lanza {@code count} solicitudes a la vez: todos los hilos esperan en una "largada" común
+     * y se liberan juntos, para maximizar la competencia real por las mismas filas de la base.
+     */
+    protected List<Integer> runConcurrently(int count, Request request) throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(count);
+        try {
+            CountDownLatch ready = new CountDownLatch(count);
+            CountDownLatch start = new CountDownLatch(1);
+            List<Future<Integer>> futures = new ArrayList<>();
+            for (int i = 0; i < count; i++) {
+                int index = i;
+                futures.add(pool.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    return request.run(index);
+                }));
+            }
+            assertThat(ready.await(30, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            List<Integer> statuses = new ArrayList<>();
+            for (Future<Integer> future : futures) {
+                statuses.add(future.get(90, TimeUnit.SECONDS));
+            }
+            return statuses;
+        } finally {
+            pool.shutdownNow();
+        }
+    }
+
+    protected static long count(List<Integer> statuses, int status) {
+        return statuses.stream().filter(s -> s == status).count();
     }
 }
