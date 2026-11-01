@@ -1,0 +1,22 @@
+﻿# flight-service - .\mvnw.cmd test - 2026-11-01 18:41
+
+[INFO] Building flight-service 0.0.1-SNAPSHOT
+[INFO] Running ar.edu.utn.frc.aerogest.flight.config.KeycloakRealmRoleConverterTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.335 s -- in ar.edu.utn.frc.aerogest.flight.config.KeycloakRealmRoleConverterTest
+[INFO] Running ar.edu.utn.frc.aerogest.flight.domain.FlightStatusTest
+[INFO] Tests run: 4, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.120 s -- in ar.edu.utn.frc.aerogest.flight.domain.FlightStatusTest
+[INFO] Running ar.edu.utn.frc.aerogest.flight.domain.FlightTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.055 s -- in ar.edu.utn.frc.aerogest.flight.domain.FlightTest
+[INFO] Running ar.edu.utn.frc.aerogest.flight.FlightApiIntegrationTest
+Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 89.60 s -- in ar.edu.utn.frc.aerogest.flight.FlightApiIntegrationTest
+[INFO] Running ar.edu.utn.frc.aerogest.flight.FlightServiceApplicationTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.186 s -- in ar.edu.utn.frc.aerogest.flight.FlightServiceApplicationTests
+[INFO] Running ar.edu.utn.frc.aerogest.flight.SeatAllocationIntegrationTest
+[INFO] Tests run: 12, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 5.282 s -- in ar.edu.utn.frc.aerogest.flight.SeatAllocationIntegrationTest
+[INFO] Running ar.edu.utn.frc.aerogest.flight.service.FlightServiceTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.465 s -- in ar.edu.utn.frc.aerogest.flight.service.FlightServiceTest
+[INFO] Running ar.edu.utn.frc.aerogest.flight.service.SeatInventoryServiceTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.766 s -- in ar.edu.utn.frc.aerogest.flight.service.SeatInventoryServiceTest
+[INFO] Tests run: 72, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS

@@ -1,0 +1,1997 @@
+{
+  "info": {
+    "name": "AeroGest",
+    "description": "Pruebas funcionales de AeroGest (TPI Backend de Aplicaciones, UTN FRC).\n\nUso: importar esta colección y el entorno aerogest-local.postman_environment.json, completar en el entorno las contraseñas\ndel archivo .env (DEMO_ADMIN_PASSWORD, DEMO_USER_PASSWORD, RESERVATION_CLIENT_SECRET) y ejecutar las carpetas 00 a 06 en orden\n(Run collection). Cada corrida genera códigos de vuelo y documentos nuevos: se puede repetir sin limpiar la base.\nLas carpetas 07 y 08 son escenarios de falla manuales: ver la descripción de cada una.\nPor consola: .\\scripts\\run-postman.ps1 (requiere Node.js).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "00 Autenticación (Keycloak)",
+      "description": "Obtiene los tokens de los usuarios de demostración y de la credencial de servicio. Ejecutar siempre primero.",
+      "item": [
+        {
+          "name": "Token ADMIN (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "aerogest-api"
+                },
+                {
+                  "key": "username",
+                  "value": "admin"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token USER (user1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "aerogest-api"
+                },
+                {
+                  "key": "username",
+                  "value": "user1"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenUser1\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token USER (user2)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "aerogest-api"
+                },
+                {
+                  "key": "username",
+                  "value": "user2"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenUser2\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token SERVICE (reservation-service)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "client_id",
+                  "value": "reservation-service"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{reservationClientSecret}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenService\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "01 Vuelos (Flight Service)",
+      "description": "Alta, validaciones (RN-01, RN-02, RN-03, RN-11), consulta, búsqueda, estados (RN-08) y seguridad (RN-09).",
+      "item": [
+        {
+          "name": "Sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{flightUrl}}/api/v1/flights"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code = UNAUTHENTICATED\", () => pm.expect(pm.response.json().code).to.eql(\"UNAUTHENTICATED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER no puede crear vuelos -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 100\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dep = new Date(Date.now() + 30 * 24 * 3600 * 1000);",
+                  "dep.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set(\"departureAt\", dep.toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"arrivalAt\", new Date(dep.getTime() + 2 * 3600 * 1000).toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"flightCodeX\", \"PM\" + Math.floor(100000 + Math.random() * 900000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ADMIN crea el vuelo A (capacidad 2) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeA}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dep = new Date(Date.now() + 30 * 24 * 3600 * 1000);",
+                  "dep.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set(\"departureAt\", dep.toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"arrivalAt\", new Date(dep.getTime() + 2 * 3600 * 1000).toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"flightCodeA\", \"PM\" + Math.floor(100000 + Math.random() * 900000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.test(\"Nace SCHEDULED con todas las plazas libres\", () => { pm.expect(b.status).to.eql(\"SCHEDULED\"); pm.expect(b.availableSeats).to.eql(2); });",
+                  "pm.collectionVariables.set(\"flightA\", b.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Código duplicado -> 409 (RN-01)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeA}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 2\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = DUPLICATE_FLIGHT_CODE\", () => pm.expect(pm.response.json().code).to.eql(\"DUPLICATE_FLIGHT_CODE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Llegada anterior a la salida -> 400 (RN-02)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{arrivalAt}}\",\n  \"arrivalAt\": \"{{departureAt}}\",\n  \"capacity\": 100\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dep = new Date(Date.now() + 30 * 24 * 3600 * 1000);",
+                  "dep.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set(\"departureAt\", dep.toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"arrivalAt\", new Date(dep.getTime() + 2 * 3600 * 1000).toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"flightCodeX\", \"PM\" + Math.floor(100000 + Math.random() * 900000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code = INVALID_SCHEDULE\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_SCHEDULE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Capacidad 0 -> 400 (RN-03)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 0\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dep = new Date(Date.now() + 30 * 24 * 3600 * 1000);",
+                  "dep.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set(\"departureAt\", dep.toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"arrivalAt\", new Date(dep.getTime() + 2 * 3600 * 1000).toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"flightCodeX\", \"PM\" + Math.floor(100000 + Math.random() * 900000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code = VALIDATION_ERROR\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Origen igual a destino -> 400 (RN-11)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"COR\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 100\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dep = new Date(Date.now() + 30 * 24 * 3600 * 1000);",
+                  "dep.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set(\"departureAt\", dep.toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"arrivalAt\", new Date(dep.getTime() + 2 * 3600 * 1000).toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"flightCodeX\", \"PM\" + Math.floor(100000 + Math.random() * 900000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code = INVALID_ROUTE\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_ROUTE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER consulta el vuelo A -> 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Es el vuelo creado\", () => pm.expect(pm.response.json().code).to.eql(pm.collectionVariables.get(\"flightCodeA\")));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER busca vuelos COR -> EZE programados -> 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights?origin=COR&destination=EZE&status=SCHEDULED&size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Devuelve una página\", () => pm.expect(pm.response.json().content).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vuelo inexistente -> 404",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/999999999"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"code = FLIGHT_NOT_FOUND\", () => pm.expect(pm.response.json().code).to.eql(\"FLIGHT_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SCHEDULED -> COMPLETED es inválido -> 409 (RN-08)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = INVALID_STATUS_TRANSITION\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_STATUS_TRANSITION\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER no puede usar la API interna -> 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/internal/v1/flights/{{flightA}}/availability"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SERVICE consulta la disponibilidad interna -> 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenService}}"
+              }
+            ],
+            "url": "{{flightUrl}}/internal/v1/flights/{{flightA}}/availability"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Admite reservas\", () => pm.expect(pm.response.json().acceptsReservations).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 Pasajeros (Reservation Service)",
+      "description": "Registro con documento único y normalizado (RN-14) y acceso solo a los pasajeros propios (RN-09).",
+      "item": [
+        {
+          "name": "user1 registra a Ana -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"Ana\", \"lastName\": \"Pérez\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniAna}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"dniAna\", String(10000000 + Math.floor(Math.random() * 79000000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"passengerAna\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mismo DNI (otro usuario) -> 409 (RN-14)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"Otra\", \"lastName\": \"Persona\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniAna}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = DUPLICATE_PASSENGER_DOCUMENT\", () => pm.expect(pm.response.json().code).to.eql(\"DUPLICATE_PASSENGER_DOCUMENT\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "DNI con letras -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"Ana\", \"lastName\": \"Pérez\", \"documentType\": \"DNI\", \"documentNumber\": \"ABC123\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code = INVALID_PASSENGER_DATA\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_PASSENGER_DATA\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Datos faltantes -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"\", \"lastName\": \"Pérez\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code = VALIDATION_ERROR\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user2 no ve el pasajero de user1 -> 403 (RN-09)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers/{{passengerAna}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user2 registra a Bruno -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"Bruno\", \"lastName\": \"Gómez\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniBruno}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"dniBruno\", String(10000000 + Math.floor(Math.random() * 79000000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"passengerBruno\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user1 lista sus pasajeros -> 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Todos son de user1\", () => pm.response.json().content.forEach(p => pm.expect(p.ownerUserId).to.eql(pm.response.json().content[0].ownerUserId)));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 Reservas (proceso principal)",
+      "description": "Creación correcta (Reservation consulta a Flight y la plaza se descuenta), duplicados (RN-06), vuelo inexistente y acceso a reservas ajenas (RN-09).",
+      "item": [
+        {
+          "name": "Sin token -> 401",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{reservationUrl}}/api/v1/reservations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"code = UNAUTHENTICATED\", () => pm.expect(pm.response.json().code).to.eql(\"UNAUTHENTICATED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "SERVICE no usa la API pública -> 403",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenService}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user1 reserva a Ana en el vuelo A -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Queda CONFIRMED\", () => pm.expect(pm.response.json().status).to.eql(\"CONFIRMED\"));",
+                  "pm.test(\"Devuelve X-Correlation-Id\", () => pm.expect(pm.response.headers.get(\"X-Correlation-Id\")).to.be.a(\"string\"));",
+                  "pm.collectionVariables.set(\"reservationAna\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Flight descontó la plaza (2 -> 1)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Plaza ocupada: availableSeats = 1\", () => pm.expect(pm.response.json().availableSeats).to.eql(1));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Misma reserva otra vez -> 409 (RN-06)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = DUPLICATE_ACTIVE_RESERVATION\", () => pm.expect(pm.response.json().code).to.eql(\"DUPLICATE_ACTIVE_RESERVATION\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user2 no reserva con el pasajero de user1 -> 403 (RN-09)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user2 no ve la reserva de user1 -> 403 (RN-09)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vuelo inexistente -> 404",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerBruno}}, \"flightId\": 999999999 }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"code = FLIGHT_NOT_FOUND\", () => pm.expect(pm.response.json().code).to.eql(\"FLIGHT_NOT_FOUND\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Solicitud sin vuelo -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerAna}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code = VALIDATION_ERROR\", () => pm.expect(pm.response.json().code).to.eql(\"VALIDATION_ERROR\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user1 consulta su reserva -> 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Está CONFIRMED\", () => pm.expect(pm.response.json().status).to.eql(\"CONFIRMED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ADMIN lista todas las reservas -> 200",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations?size=5"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Ve reservas\", () => pm.expect(pm.response.json().totalElements).to.be.above(0));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 Cancelación (RN-07)",
+      "description": "Cancelar libera la plaza en Flight; cancelar de nuevo se rechaza y no libera dos veces.",
+      "item": [
+        {
+          "name": "user2 no puede cancelar la reserva de user1 -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user1 cancela su reserva -> 200",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Queda CANCELLED\", () => pm.expect(pm.response.json().status).to.eql(\"CANCELLED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Flight liberó la plaza (1 -> 2)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Plaza liberada: availableSeats = 2\", () => pm.expect(pm.response.json().availableSeats).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancelar otra vez -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = INVALID_RESERVATION_STATE\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_RESERVATION_STATE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La plaza no se liberó dos veces (sigue en 2)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Sin doble liberación: availableSeats = 2\", () => pm.expect(pm.response.json().availableSeats).to.eql(2));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Tras cancelar, Ana puede volver a reservar -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "05 Vuelo cancelado o no reservable (RN-04)",
+      "item": [
+        {
+          "name": "ADMIN crea el vuelo B -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeB}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dep = new Date(Date.now() + 30 * 24 * 3600 * 1000);",
+                  "dep.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set(\"departureAt\", dep.toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"arrivalAt\", new Date(dep.getTime() + 2 * 3600 * 1000).toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"flightCodeB\", \"PM\" + Math.floor(100000 + Math.random() * 900000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightB\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "ADMIN cancela el vuelo B -> 200",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/{{flightB}}/status",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"CANCELLED\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar en el vuelo cancelado -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerBruno}}, \"flightId\": {{flightB}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = FLIGHT_NOT_RESERVABLE\", () => pm.expect(pm.response.json().code).to.eql(\"FLIGHT_NOT_RESERVABLE\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "06 Capacidad agotada (RN-05)",
+      "description": "Vuelo de capacidad 1: la segunda reserva se rechaza. La prueba con solicitudes simultáneas está en scripts/smoke-reservations.ps1.",
+      "item": [
+        {
+          "name": "ADMIN crea el vuelo C (capacidad 1) -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"{{flightCodeC}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 1\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const dep = new Date(Date.now() + 30 * 24 * 3600 * 1000);",
+                  "dep.setUTCMilliseconds(0);",
+                  "pm.collectionVariables.set(\"departureAt\", dep.toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"arrivalAt\", new Date(dep.getTime() + 2 * 3600 * 1000).toISOString().replace(\".000\", \"\"));",
+                  "pm.collectionVariables.set(\"flightCodeC\", \"PM\" + Math.floor(100000 + Math.random() * 900000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightC\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Ana ocupa la única plaza -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightC}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bruno ya no tiene lugar -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerBruno}}, \"flightId\": {{flightC}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = NO_AVAILABILITY\", () => pm.expect(pm.response.json().code).to.eql(\"NO_AVAILABILITY\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "El vuelo C quedó completo (0 plazas)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{flightUrl}}/api/v1/flights/{{flightC}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Sin sobreventa: availableSeats = 0\", () => pm.expect(pm.response.json().availableSeats).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La reserva de Bruno quedó REJECTED",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser2}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations?size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().content.find(x => x.flightId == pm.collectionVariables.get(\"flightC\"));",
+                  "pm.test(\"Registrada como REJECTED\", () => pm.expect(r.status).to.eql(\"REJECTED\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "07 [Manual] Flight Service apagado (RN-10)",
+      "description": "Escenario manual: requiere el sistema en Docker. Ejecutar esta carpeta sola (no depende de las anteriores). Antes: docker stop aerogest-flight-service. Después: docker start aerogest-flight-service.",
+      "item": [
+        {
+          "name": "Token USER (user1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "aerogest-api"
+                },
+                {
+                  "key": "username",
+                  "value": "user1"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenUser1\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user1 registra un pasajero -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"Prueba\", \"lastName\": \"Falla\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniFailure}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"dniFailure\", String(10000000 + Math.floor(Math.random() * 79000000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"passengerFailure\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar con Flight apagado -> 503",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerFailure}}, \"flightId\": 1 }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 503\", () => pm.response.to.have.status(503));",
+                  "pm.test(\"code = FLIGHT_SERVICE_UNAVAILABLE\", () => pm.expect(pm.response.json().code).to.eql(\"FLIGHT_SERVICE_UNAVAILABLE\"));",
+                  "pm.test(\"Informa el correlationId\", () => pm.expect(pm.response.json().correlationId).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La reserva no quedó confirmada",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations?size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().content.find(x => x.passengerId == pm.collectionVariables.get(\"passengerFailure\"));",
+                  "pm.test(\"No está CONFIRMED\", () => pm.expect(r.status).to.not.eql(\"CONFIRMED\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "08 [Manual] Flight Service no responde a tiempo (RN-10)",
+      "description": "Escenario manual: requiere el sistema en Docker. Ejecutar esta carpeta sola (no depende de las anteriores). Antes: docker pause aerogest-flight-service. Después: docker unpause aerogest-flight-service.",
+      "item": [
+        {
+          "name": "Token USER (user1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "aerogest-api"
+                },
+                {
+                  "key": "username",
+                  "value": "user1"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenUser1\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user1 registra un pasajero -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"Prueba\", \"lastName\": \"Falla\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniFailure}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"dniFailure\", String(10000000 + Math.floor(Math.random() * 79000000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"passengerFailure\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar con Flight congelado -> 504",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerFailure}}, \"flightId\": 1 }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 504\", () => pm.response.to.have.status(504));",
+                  "pm.test(\"code = FLIGHT_SERVICE_TIMEOUT\", () => pm.expect(pm.response.json().code).to.eql(\"FLIGHT_SERVICE_TIMEOUT\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "La reserva no quedó confirmada",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{reservationUrl}}/api/v1/reservations?size=20"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().content.find(x => x.passengerId == pm.collectionVariables.get(\"passengerFailure\"));",
+                  "pm.test(\"No está CONFIRMED\", () => pm.expect(r.status).to.not.eql(\"CONFIRMED\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "tokenUser1",
+      "value": ""
+    },
+    {
+      "key": "tokenUser2",
+      "value": ""
+    },
+    {
+      "key": "tokenService",
+      "value": ""
+    },
+    {
+      "key": "flightA",
+      "value": ""
+    },
+    {
+      "key": "flightB",
+      "value": ""
+    },
+    {
+      "key": "flightC",
+      "value": ""
+    },
+    {
+      "key": "passengerAna",
+      "value": ""
+    },
+    {
+      "key": "passengerBruno",
+      "value": ""
+    },
+    {
+      "key": "reservationAna",
+      "value": ""
+    }
+  ]
+}

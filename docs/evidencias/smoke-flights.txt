@@ -1,0 +1,44 @@
+﻿# smoke-flights.ps1 - 2026-11-01 18:34 - sistema en Docker (docker compose --profile apps)
+
+== Seguridad ==
+PASS  Sin token -> 401 (HTTP 401 UNAUTHENTICATED)
+PASS  USER no puede crear vuelos -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  USER no puede usar /internal -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  ADMIN no puede usar /internal -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  SERVICE no puede crear vuelos -> 403 (HTTP 403 ACCESS_DENIED)
+
+== Vuelos ==
+PASS  ADMIN crea un vuelo -> 201 (HTTP 201 SMK279583)
+PASS  Código duplicado -> 409 (HTTP 409 DUPLICATE_FLIGHT_CODE)
+PASS  Llegada anterior a la salida -> 400 (HTTP 400 INVALID_SCHEDULE)
+PASS  Capacidad 0 -> 400 (HTTP 400 VALIDATION_ERROR)
+PASS  USER consulta el vuelo -> 200 (HTTP 200 SMK279583)
+PASS  USER lista vuelos -> 200 (HTTP 200 )
+PASS  Vuelo inexistente -> 404 (HTTP 404 FLIGHT_NOT_FOUND)
+PASS  SCHEDULED -> COMPLETED es inválido -> 409 (HTTP 409 INVALID_STATUS_TRANSITION)
+PASS  Estado inexistente -> 400 (HTTP 400 MALFORMED_REQUEST)
+
+== Plazas (capacidad 1) ==
+PASS  Disponibilidad con SERVICE -> 200 (HTTP 200 SMK279583)
+PASS  El vuelo admite reservas (HTTP 200 )
+PASS  Asignar plaza a la reserva 1 -> 201 (HTTP 201 )
+PASS  Repetir la asignación (idempotente) -> 200 (HTTP 200 )
+PASS  Última plaza ya ocupada -> 409 (HTTP 409 NO_AVAILABILITY)
+PASS  Plazas disponibles = 0 (no se descontó dos veces) (HTTP 200 )
+PASS  Liberar la plaza de la reserva 1 -> 204 (HTTP 204 )
+PASS  Liberar otra vez (idempotente) -> 204 (HTTP 204 )
+PASS  Plazas disponibles = 1 (se liberó una sola vez) (HTTP 200 )
+PASS  Asignar una reserva liberada -> 409 (HTTP 409 ALLOCATION_CONFLICT)
+PASS  La reserva 2 ahora sí obtiene plaza -> 201 (HTTP 201 )
+PASS  Liberar una reserva que nunca ocupó plaza -> 204 (HTTP 204 )
+PASS  Esa asignación, si llega tarde, se rechaza -> 409 (HTTP 409 ALLOCATION_CONFLICT)
+PASS  Disponibilidad de vuelo inexistente -> 404 (HTTP 404 FLIGHT_NOT_FOUND)
+
+== Vuelo que no admite reservas ==
+PASS  ADMIN cierra el vuelo -> 200 (HTTP 200 SMK279583)
+PASS  Asignar en un vuelo cerrado -> 409 (HTTP 409 FLIGHT_NOT_RESERVABLE)
+PASS  ADMIN lo cancela -> 200 (HTTP 200 SMK279583)
+PASS  Un vuelo cancelado no se puede modificar -> 409 (HTTP 409 FLIGHT_NOT_MODIFIABLE)
+
+Resultado: 32 correctas, 0 fallidas
+

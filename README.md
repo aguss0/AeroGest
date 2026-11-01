@@ -1,108 +1,138 @@
 # AeroGest
 
-Backend de gestión de vuelos y reservas (TPI Backend de Aplicaciones, UTN FRC).
-Dos microservicios, cada uno con su propia base PostgreSQL, y Keycloak como proveedor de identidad.
+Backend de gestión de vuelos y reservas: Trabajo Práctico Integrador de Backend de Aplicaciones, UTN FRC.
 
-| Componente | Puerto |
+Son dos microservicios Spring Boot independientes, cada uno con su propia base PostgreSQL, y Keycloak
+como proveedor de identidad. El proceso central es la **reserva**: Reservation Service la confirma
+solo después de que Flight Service ocupa la plaza, sin sobreventa aunque lleguen solicitudes
+simultáneas y sin confirmar nada si Flight no responde.
+
+| Componente | Puerto | Responsabilidad |
+|---|---|---|
+| flight-service | 8081 | Vuelos, estados y plazas disponibles (fuente de verdad de la capacidad) |
+| reservation-service | 8082 | Pasajeros y reservas; orquesta la reserva contra Flight |
+| Keycloak | 8180 | Usuarios, roles (ADMIN, USER, SERVICE) y emisión de tokens JWT |
+| PostgreSQL de vuelos | 5433 | Base exclusiva de flight-service |
+| PostgreSQL de reservas | 5434 | Base exclusiva de reservation-service |
+
+Estado: implementación y verificación completas (Fases 1 a 4). Documentación de entrega en `docs/`.
+
+## Documentación
+
+| Documento | Contenido |
 |---|---|
-| flight-service | 8081 |
-| reservation-service | 8082 |
-| Keycloak | 8180 |
-| PostgreSQL de vuelos | 5433 |
-| PostgreSQL de reservas | 5434 |
-
-> Estado: Fase 2 (preparación). Los servicios todavía no tienen lógica de negocio.
+| [docs/arquitectura.md](docs/arquitectura.md) | Dominio, MVP, actores, diagrama de arquitectura, secuencia de la reserva, estados, modelo de datos, contratos REST y reglas de negocio numeradas |
+| [docs/adr/](docs/adr/) | Decisiones de arquitectura: diseño inicial (0001), Keycloak (0002), flujo de reserva y consistencia (0003) |
+| [docs/trazabilidad.md](docs/trazabilidad.md) | Matriz que vincula requisitos y reglas con su implementación, sus pruebas y los criterios de evaluación |
+| [docs/evidencias/](docs/evidencias/) | Salidas de las pruebas automáticas, de los smoke tests y de la colección Postman |
+| [docs/guion-defensa.md](docs/guion-defensa.md) | Guion de la demostración y preguntas probables |
+| [postman/](postman/) | Colección Postman y entorno local |
+| Swagger | http://localhost:8081/swagger-ui.html y http://localhost:8082/swagger-ui.html |
 
 ## Requisitos (Windows)
-- JDK 21
 - Docker Desktop (con WSL2)
-- PowerShell y `curl.exe` (vienen con Windows 10/11)
+- PowerShell 5.1 o superior (viene con Windows)
+- Para correr los servicios con Maven o los tests: JDK 21
+- Para correr la colección por consola: Node.js (opcional; también se puede usar Postman)
 
 ## Puesta en marcha
 
 Todos los comandos se ejecutan desde la raíz del repo (`aerogest/`).
 
 ```powershell
-# 1. Variables de entorno
-Copy-Item .env.example .env        # editá las claves de .env
+# 1. Variables de entorno: copiá el ejemplo y cambiá las claves
+Copy-Item .env.example .env
 
-# 2. Infraestructura: bases de datos + Keycloak
-#    (si ya habías levantado la versión anterior: docker compose down -v)
-docker compose up -d
-
-# 3. Generar los esqueletos Maven (una sola vez)
-.\scripts\init-projects.ps1
-
-# 4. Agregar springdoc a AMBOS pom.xml (ver sección siguiente)
-
-# 5. Cargar variables y arrancar cada servicio (una terminal por servicio)
-. .\scripts\load-env.ps1
-cd flight-service
-.\mvnw.cmd spring-boot:run
-```
-
-En otra terminal repetí `. .\scripts\load-env.ps1` y arrancá `reservation-service` con el mismo comando.
-
-**Sistema completo en contenedores** (después del paso 3 y 4):
-
-```powershell
+# 2. Sistema completo en contenedores (la primera vez tarda varios minutos en construir)
 docker compose --profile apps up -d --build
 ```
 
-## Dependencia springdoc (agregar a ambos `pom.xml`, dentro de `<dependencies>`)
+Keycloak tarda entre 1 y 3 minutos en arrancar. El sistema está listo cuando los tres responden:
 
-```xml
-<dependency>
-    <groupId>org.springdoc</groupId>
-    <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-    <version>3.0.3</version>
-</dependency>
+```powershell
+curl.exe http://localhost:8180/realms/aerogest
+curl.exe http://localhost:8081/actuator/health
+curl.exe http://localhost:8082/actuator/health
 ```
 
-Para Spring Boot 4 hay que usar la serie 3.x de springdoc. Si existe una 3.0.x más nueva, usala.
+Para apagar todo: `docker compose --profile apps down`. Para empezar con bases vacías, agregá `-v`.
 
-## Verificación de la Fase 2
+**Alternativa sin contenedores para los servicios** (útil para depurar): levantá solo la
+infraestructura con `docker compose up -d` y, en una terminal por servicio:
 
-**1. Bases y servicios**
-- Cada servicio imprime `Started ...Application` en el log.
-- Flyway aplica la migración: busca `Successfully applied 1 migration`.
-- Las tablas existen (usá los usuarios y bases de tu `.env`):
-  ```powershell
-  docker exec -it aerogest-flights-db psql -U flights_user -d flights_db -c "\dt"
-  docker exec -it aerogest-reservations-db psql -U reservations_user -d reservations_db -c "\dt"
-  ```
+```powershell
+. .\scripts\load-env.ps1
+cd flight-service        # o reservation-service
+.\mvnw.cmd spring-boot:run
+```
 
-**2. Keycloak**
-- Abrí http://localhost:8180 e ingresá a la consola con `KEYCLOAK_ADMIN_USER` / `KEYCLOAK_ADMIN_PASSWORD`. Tiene que existir el realm `aerogest` con los roles ADMIN, USER y SERVICE.
-- Pedí un token de usuario (reemplazá la contraseña por `DEMO_ADMIN_PASSWORD`):
-  ```powershell
-  $body = @{ grant_type = "password"; client_id = "aerogest-api"; username = "admin"; password = "TU_DEMO_ADMIN_PASSWORD" }
-  $t = Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/aerogest/protocol/openid-connect/token" -Body $body
-  ```
-- Verificá que el token trae el rol:
-  ```powershell
-  $p = $t.access_token.Split('.')[1].Replace('-','+').Replace('_','/')
-  switch ($p.Length % 4) { 2 { $p += '==' } 3 { $p += '=' } }
-  [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($p)) | ConvertFrom-Json | Select-Object -ExpandProperty realm_access
-  ```
-  Debe mostrar `roles` con `ADMIN`.
-- Pedí el token de servicio:
-  ```powershell
-  $b = @{ grant_type = "client_credentials"; client_id = "reservation-service"; client_secret = "TU_RESERVATION_CLIENT_SECRET" }
-  Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/aerogest/protocol/openid-connect/token" -Body $b
-  ```
+### Usuarios de demostración
 
-Si el login falla con "Invalid user credentials" y la contraseña es correcta, el reemplazo de variables del realm no funcionó: avisame.
+El realm `aerogest` (`keycloak/aerogest-realm.json`) se importa en cada arranque limpio de Keycloak.
+
+| Usuario | Rol | Contraseña |
+|---|---|---|
+| `admin` | ADMIN | `DEMO_ADMIN_PASSWORD` del `.env` |
+| `user1`, `user2` | USER | `DEMO_USER_PASSWORD` del `.env` |
+| cliente `reservation-service` | SERVICE | `RESERVATION_CLIENT_SECRET` del `.env` (client credentials) |
+
+Para obtener un token a mano y usarlo en Swagger:
+
+```powershell
+. .\scripts\load-env.ps1
+$body = @{ grant_type = "password"; client_id = "aerogest-api"; username = "user1"; password = $env:DEMO_USER_PASSWORD }
+(Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/aerogest/protocol/openid-connect/token" -Body $body).access_token
+```
+
+## Pruebas
+
+### Automáticas (JUnit, Mockito, Testcontainers)
+Requieren Docker Desktop abierto: las pruebas de integración levantan su propio PostgreSQL.
+
+```powershell
+cd flight-service;      .\mvnw.cmd test   # 72 pruebas
+cd reservation-service; .\mvnw.cmd test   # 113 pruebas
+```
+
+Incluyen reglas de dominio, servicios con dobles, API de punta a punta contra una base real,
+seguridad (401, 403, recursos ajenos), fallos de integración (caída, timeout, respuesta inválida)
+y concurrencia (20 solicitudes por la última plaza, reservas y cancelaciones simultáneas).
+
+### Colección Postman
+Importá `postman/AeroGest.postman_collection.json` y `postman/aerogest-local.postman_environment.json`,
+completá en el entorno las tres claves del `.env` y ejecutá las carpetas **00 a 06** en orden con
+*Run collection*. Cada corrida crea vuelos y documentos nuevos, así que se puede repetir.
+
+Por consola, con las claves tomadas del `.env`:
+
+```powershell
+. .\scripts\load-env.ps1
+.\scripts\run-postman.ps1
+```
+
+Las carpetas **07** (Flight apagado) y **08** (Flight sin responder) son escenarios manuales: cada
+una indica qué comando de Docker ejecutar antes y después.
+
+### Smoke tests contra el sistema real
+```powershell
+. .\scripts\load-env.ps1
+.\scripts\smoke-flights.ps1                          # Flight Service: vuelos, seguridad, asignación de plazas
+.\scripts\smoke-reservations.ps1                     # proceso completo, incluida la última plaza con 10 reservas simultáneas
+.\scripts\smoke-reservations.ps1 -IncludeFailures    # además apaga (503) y congela (504) Flight Service
+```
 
 ## Estructura
 
 | Ruta | Contenido |
 |---|---|
-| `docker-compose.yml` | Dos PostgreSQL, Keycloak y (perfil `apps`) los dos servicios |
+| `docker-compose.yml` | Dos PostgreSQL y Keycloak; con el perfil `apps`, también los dos servicios |
 | `.env.example` | Variables de entorno de ejemplo, sin secretos reales |
 | `keycloak/aerogest-realm.json` | Realm con roles, clientes y usuarios de demostración |
-| `scripts/` | `init-projects.ps1` y `load-env.ps1` |
-| `flight-service/` | Microservicio de vuelos (incluye `Dockerfile`) |
-| `reservation-service/` | Microservicio de reservas (incluye `Dockerfile`) |
-| `docs/adr/` | Decisiones de arquitectura |
-| `postman/` | Colección de pruebas (Fase 4) |
+| `flight-service/`, `reservation-service/` | Cada microservicio: código, migraciones Flyway (`src/main/resources/db/migration`), pruebas y `Dockerfile` |
+| `scripts/` | Carga del `.env`, smoke tests, ejecución de la colección (`init-projects.ps1` generó los esqueletos en la Fase 2) |
+| `postman/` | Colección de pruebas funcionales y entorno |
+| `docs/` | Arquitectura, ADRs, trazabilidad, evidencias y guion de defensa |
+
+## Decisiones pendientes
+- Confirmar con la cátedra que Keycloak, como infraestructura de identidad, es compatible con el
+  requisito de dos microservicios de negocio (ver ADR 0002).

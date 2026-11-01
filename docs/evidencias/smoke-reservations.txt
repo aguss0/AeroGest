@@ -1,0 +1,56 @@
+﻿# smoke-reservations.ps1 -IncludeFailures - 2026-11-01 18:34 - sistema en Docker (docker compose --profile apps)
+
+== Seguridad (RN-09) ==
+PASS  Sin token -> 401 (HTTP 401 UNAUTHENTICATED)
+PASS  El rol SERVICE no usa la API pública -> 403 (HTTP 403 ACCESS_DENIED)
+
+== Pasajeros (RN-14) ==
+PASS  user1 registra a Ana -> 201 (HTTP 201 )
+PASS  Mismo DNI con puntos, otro usuario -> 409 (HTTP 409 DUPLICATE_PASSENGER_DOCUMENT)
+PASS  DNI con letras -> 400 (HTTP 400 INVALID_PASSENGER_DATA)
+PASS  user2 no ve un pasajero de user1 -> 403 (HTTP 403 ACCESS_DENIED)
+
+== Reserva ==
+PASS  user1 reserva a Ana -> 201 (HTTP 201 )
+PASS  La reserva queda CONFIRMED (CONFIRMED)
+PASS  Flight descontó la plaza (2 -> 1) (1)
+PASS  Misma reserva otra vez -> 409 (HTTP 409 DUPLICATE_ACTIVE_RESERVATION)
+PASS  user2 no ve la reserva de user1 -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  user2 no la puede cancelar -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  user2 no reserva con el pasajero de user1 -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  Vuelo inexistente -> 404 (HTTP 404 FLIGHT_NOT_FOUND)
+PASS  Solicitud sin vuelo -> 400 (HTTP 400 VALIDATION_ERROR)
+PASS  ADMIN ve la reserva -> 200 (HTTP 200 )
+
+== Cancelación (RN-07) ==
+PASS  user1 cancela su reserva -> 200 (HTTP 200 )
+PASS  La reserva queda CANCELLED (CANCELLED)
+PASS  Flight liberó la plaza (1 -> 2) (2)
+PASS  Cancelar otra vez -> 409 (HTTP 409 INVALID_RESERVATION_STATE)
+PASS  La plaza no se liberó dos veces (sigue en 2) (2)
+PASS  Tras cancelar, Ana puede volver a reservar -> 201 (HTTP 201 )
+
+== Vuelo que no admite reservas (RN-04) ==
+PASS  ADMIN cancela el vuelo -> 200 (HTTP 200 RSV7520B)
+PASS  Reservar en un vuelo cancelado -> 409 (HTTP 409 FLIGHT_NOT_RESERVABLE)
+PASS  La reserva quedó REJECTED (REJECTED)
+
+== Última plaza: 10 reservas simultáneas (RN-05) ==
+PASS  Exactamente una reserva confirmada (201) (1)
+PASS  Las demás rechazadas por falta de plaza (409 NO_AVAILABILITY) (9)
+PASS  Flight no sobrevendió: plazas disponibles = 0 (0)
+PASS  En la base: 1 CONFIRMED (1)
+PASS  En la base: 9 REJECTED (9)
+
+== Flight Service fuera de servicio (RN-10) ==
+PASS  Reservar con Flight apagado -> 503 (HTTP 503 FLIGHT_SERVICE_UNAVAILABLE)
+PASS  La reserva no quedó confirmada (PENDING) (PENDING)
+PASS  Flight no ocupó plazas mientras estuvo caído (1)
+
+== Flight Service no responde a tiempo (RN-10) ==
+PASS  Reservar con Flight congelado -> 504 (HTTP 504 FLIGHT_SERVICE_TIMEOUT)
+PASS  La reserva no quedó confirmada (PENDING) (PENDING)
+  Las reservas PENDING de esta sección las resuelve el job (REJECTED) en unos 6 minutos.
+
+Resultado: 35 correctas, 0 fallidas
+

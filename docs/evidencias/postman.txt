@@ -1,0 +1,360 @@
+﻿# Colección Postman con newman - 2026-11-01 19:15 - sistema en Docker
+
+## Carpetas 00 a 06 (.\scripts\run-postman.ps1)
+
+newman
+
+AeroGest
+
+□ 00 Autenticación (Keycloak)
+└ Token ADMIN (admin)
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.32kB, 4.8s]
+  √  HTTP 200
+
+└ Token USER (user1)
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 377ms]
+  √  HTTP 200
+
+└ Token USER (user2)
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 353ms]
+  √  HTTP 200
+
+└ Token SERVICE (reservation-service)
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 1.37kB, 110ms]
+  √  HTTP 200
+
+□ 01 Vuelos (Flight Service)
+└ Sin token -> 401
+  GET http://localhost:8081/api/v1/flights [401 Unauthorized, 577B, 419ms]
+  √  HTTP 401
+  √  code = UNAUTHENTICATED
+
+└ USER no puede crear vuelos -> 403
+  POST http://localhost:8081/api/v1/flights [403 Forbidden, 550B, 206ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ ADMIN crea el vuelo A (capacidad 2) -> 201
+  POST http://localhost:8081/api/v1/flights [201 Created, 612B, 709ms]
+  √  HTTP 201
+  √  Nace SCHEDULED con todas las plazas libres
+
+└ Código duplicado -> 409 (RN-01)
+  POST http://localhost:8081/api/v1/flights [409 Conflict, 598B, 119ms]
+  √  HTTP 409
+  √  code = DUPLICATE_FLIGHT_CODE
+
+└ Llegada anterior a la salida -> 400 (RN-02)
+  POST http://localhost:8081/api/v1/flights [400 Bad Request, 569B, 108ms]
+  √  HTTP 400
+  √  code = INVALID_SCHEDULE
+
+└ Capacidad 0 -> 400 (RN-03)
+  POST http://localhost:8081/api/v1/flights [400 Bad Request, 642B, 118ms]
+  √  HTTP 400
+  √  code = VALIDATION_ERROR
+
+└ Origen igual a destino -> 400 (RN-11)
+  POST http://localhost:8081/api/v1/flights [400 Bad Request, 570B, 86ms]
+  √  HTTP 400
+  √  code = INVALID_ROUTE
+
+└ USER consulta el vuelo A -> 200
+  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 111ms]
+  √  HTTP 200
+  √  Es el vuelo creado
+
+└ USER busca vuelos COR -> EZE programados -> 200
+  GET http://localhost:8081/api/v1/flights?origin=COR&destination=EZE&status=SCHEDULED&size=5 [200 OK, 1.39kB, 319ms]
+  √  HTTP 200
+  √  Devuelve una página
+
+└ Vuelo inexistente -> 404
+  GET http://localhost:8081/api/v1/flights/999999999 [404 Not Found, 588B, 133ms]
+  √  HTTP 404
+  √  code = FLIGHT_NOT_FOUND
+
+└ SCHEDULED -> COMPLETED es inválido -> 409 (RN-08)
+  PATCH http://localhost:8081/api/v1/flights/19/status [409 Conflict, 602B, 85ms]
+  √  HTTP 409
+  √  code = INVALID_STATUS_TRANSITION
+
+└ USER no puede usar la API interna -> 403
+  GET http://localhost:8081/internal/v1/flights/19/availability [403 Forbidden, 550B, 72ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ SERVICE consulta la disponibilidad interna -> 200
+  GET http://localhost:8081/internal/v1/flights/19/availability [200 OK, 496B, 55ms]
+  √  HTTP 200
+  √  Admite reservas
+
+□ 02 Pasajeros (Reservation Service)
+└ user1 registra a Ana -> 201
+  POST http://localhost:8082/api/v1/passengers [201 Created, 667B, 906ms]
+  √  HTTP 201
+
+└ Mismo DNI (otro usuario) -> 409 (RN-14)
+  POST http://localhost:8082/api/v1/passengers [409 Conflict, 613B, 102ms]
+  √  HTTP 409
+  √  code = DUPLICATE_PASSENGER_DOCUMENT
+
+└ DNI con letras -> 400
+  POST http://localhost:8082/api/v1/passengers [400 Bad Request, 588B, 41ms]
+  √  HTTP 400
+  √  code = INVALID_PASSENGER_DATA
+
+└ Datos faltantes -> 400
+  POST http://localhost:8082/api/v1/passengers [400 Bad Request, 804B, 75ms]
+  √  HTTP 400
+  √  code = VALIDATION_ERROR
+
+└ user2 no ve el pasajero de user1 -> 403 (RN-09)
+  GET http://localhost:8082/api/v1/passengers/42 [403 Forbidden, 589B, 124ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ user2 registra a Bruno -> 201
+  POST http://localhost:8082/api/v1/passengers [201 Created, 669B, 48ms]
+  √  HTTP 201
+
+└ user1 lista sus pasajeros -> 200
+  GET http://localhost:8082/api/v1/passengers [200 OK, 5.25kB, 174ms]
+  √  HTTP 200
+  √  Todos son de user1
+
+□ 03 Reservas (proceso principal)
+└ Sin token -> 401
+  GET http://localhost:8082/api/v1/reservations [401 Unauthorized, 577B, 30ms]
+  √  HTTP 401
+  √  code = UNAUTHENTICATED
+
+└ SERVICE no usa la API pública -> 403
+  GET http://localhost:8082/api/v1/reservations [403 Forbidden, 550B, 23ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ user1 reserva a Ana en el vuelo A -> 201
+  POST http://localhost:8082/api/v1/reservations [201 Created, 705B, 305ms]
+  √  HTTP 201
+  √  Queda CONFIRMED
+  √  Devuelve X-Correlation-Id
+
+└ Flight descontó la plaza (2 -> 1)
+  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 34ms]
+  √  HTTP 200
+  √  Plaza ocupada: availableSeats = 1
+
+└ Misma reserva otra vez -> 409 (RN-06)
+  POST http://localhost:8082/api/v1/reservations [409 Conflict, 617B, 77ms]
+  √  HTTP 409
+  √  code = DUPLICATE_ACTIVE_RESERVATION
+
+└ user2 no reserva con el pasajero de user1 -> 403 (RN-09)
+  POST http://localhost:8082/api/v1/reservations [403 Forbidden, 589B, 66ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ user2 no ve la reserva de user1 -> 403 (RN-09)
+  GET http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e [403 Forbidden, 622B, 71ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ Vuelo inexistente -> 404
+  POST http://localhost:8082/api/v1/reservations [404 Not Found, 580B, 448ms]
+  √  HTTP 404
+  √  code = FLIGHT_NOT_FOUND
+
+└ Solicitud sin vuelo -> 400
+  POST http://localhost:8082/api/v1/reservations [400 Bad Request, 634B, 81ms]
+  √  HTTP 400
+  √  code = VALIDATION_ERROR
+
+└ user1 consulta su reserva -> 200
+  GET http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e [200 OK, 621B, 245ms]
+  √  HTTP 200
+  √  Está CONFIRMED
+
+└ ADMIN lista todas las reservas -> 200
+  GET http://localhost:8082/api/v1/reservations?size=5 [200 OK, 1.65kB, 161ms]
+  √  HTTP 200
+  √  Ve reservas
+
+□ 04 Cancelación (RN-07)
+└ user2 no puede cancelar la reserva de user1 -> 403
+  POST http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e/cancel [403 Forbidden, 622B, 68ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ user1 cancela su reserva -> 200
+  POST http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e/cancel [200 OK, 624B, 213ms]
+  √  HTTP 200
+  √  Queda CANCELLED
+
+└ Flight liberó la plaza (1 -> 2)
+  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 46ms]
+  √  HTTP 200
+  √  Plaza liberada: availableSeats = 2
+
+└ Cancelar otra vez -> 409
+  POST http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e/cancel [409 Conflict, 632B, 40ms]
+  √  HTTP 409
+  √  code = INVALID_RESERVATION_STATE
+
+└ La plaza no se liberó dos veces (sigue en 2)
+  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 36ms]
+  √  HTTP 200
+  √  Sin doble liberación: availableSeats = 2
+
+└ Tras cancelar, Ana puede volver a reservar -> 201
+  POST http://localhost:8082/api/v1/reservations [201 Created, 705B, 182ms]
+  √  HTTP 201
+
+□ 05 Vuelo cancelado o no reservable (RN-04)
+└ ADMIN crea el vuelo B -> 201
+  POST http://localhost:8081/api/v1/flights [201 Created, 612B, 53ms]
+  √  HTTP 201
+
+└ ADMIN cancela el vuelo B -> 200
+  PATCH http://localhost:8081/api/v1/flights/20/status [200 OK, 570B, 75ms]
+  √  HTTP 200
+
+└ Reservar en el vuelo cancelado -> 409
+  POST http://localhost:8082/api/v1/reservations [409 Conflict, 617B, 134ms]
+  √  HTTP 409
+  √  code = FLIGHT_NOT_RESERVABLE
+
+□ 06 Capacidad agotada (RN-05)
+└ ADMIN crea el vuelo C (capacidad 1) -> 201
+  POST http://localhost:8081/api/v1/flights [201 Created, 612B, 45ms]
+  √  HTTP 201
+
+└ Ana ocupa la única plaza -> 201
+  POST http://localhost:8082/api/v1/reservations [201 Created, 705B, 151ms]
+  √  HTTP 201
+
+└ Bruno ya no tiene lugar -> 409
+  POST http://localhost:8082/api/v1/reservations [409 Conflict, 586B, 97ms]
+  √  HTTP 409
+  √  code = NO_AVAILABILITY
+
+└ El vuelo C quedó completo (0 plazas)
+  GET http://localhost:8081/api/v1/flights/21 [200 OK, 570B, 36ms]
+  √  HTTP 200
+  √  Sin sobreventa: availableSeats = 0
+
+└ La reserva de Bruno quedó REJECTED
+  GET http://localhost:8082/api/v1/reservations?size=20 [200 OK, 4.03kB, 46ms]
+  √  HTTP 200
+  √  Registrada como REJECTED
+
+┌─────────────────────────┬────────────────────┬───────────────────┐
+│                         │           executed │            failed │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│              iterations │                  1 │                 0 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│                requests │                 49 │                 0 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│            test-scripts │                 49 │                 0 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│      prerequest-scripts │                  9 │                 0 │
+├─────────────────────────┼────────────────────┼───────────────────┤
+│              assertions │                 88 │                 0 │
+├─────────────────────────┴────────────────────┴───────────────────┤
+│ total run duration: 17.5s                                        │
+├──────────────────────────────────────────────────────────────────┤
+│ total data received: 26.22kB (approx)                            │
+├──────────────────────────────────────────────────────────────────┤
+│ average response time: 253ms [min: 23ms, max: 4.8s, s.d.: 682ms] │
+└──────────────────────────────────────────────────────────────────┘
+
+## Carpeta 07 con Flight apagado (docker stop aerogest-flight-service)
+
+newman
+
+AeroGest
+
+□ 07 [Manual] Flight Service apagado (RN-10)
+└ Token USER (user1)
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 1481ms]
+  √  HTTP 200
+
+└ user1 registra un pasajero -> 201
+  POST http://localhost:8082/api/v1/passengers [201 Created, 669B, 905ms]
+  √  HTTP 201
+
+└ Reservar con Flight apagado -> 503
+  POST http://localhost:8082/api/v1/reservations [503 Service Unavailable, 592B, 4.7s]
+  √  HTTP 503
+  √  code = FLIGHT_SERVICE_UNAVAILABLE
+  √  Informa el correlationId
+
+└ La reserva no quedó confirmada
+  GET http://localhost:8082/api/v1/reservations?size=20 [200 OK, 5.22kB, 122ms]
+  √  HTTP 200
+  √  No está CONFIRMED
+
+┌─────────────────────────┬─────────────────────┬─────────────────────┐
+│                         │            executed │              failed │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│              iterations │                   1 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│                requests │                   4 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│            test-scripts │                   4 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│      prerequest-scripts │                   1 │                   0 │
+├─────────────────────────┼─────────────────────┼─────────────────────┤
+│              assertions │                   7 │                   0 │
+├─────────────────────────┴─────────────────────┴─────────────────────┤
+│ total run duration: 7.9s                                            │
+├─────────────────────────────────────────────────────────────────────┤
+│ total data received: 7.31kB (approx)                                │
+├─────────────────────────────────────────────────────────────────────┤
+│ average response time: 1824ms [min: 122ms, max: 4.7s, s.d.: 1778ms] │
+└─────────────────────────────────────────────────────────────────────┘
+
+## Carpeta 08 con Flight congelado (docker pause aerogest-flight-service)
+
+newman
+
+AeroGest
+
+□ 08 [Manual] Flight Service no responde a tiempo (RN-10)
+└ Token USER (user1)
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 3.2s]
+  √  HTTP 200
+
+└ user1 registra un pasajero -> 201
+  POST http://localhost:8082/api/v1/passengers [201 Created, 669B, 2.3s]
+  √  HTTP 201
+
+└ Reservar con Flight congelado -> 504
+  POST http://localhost:8082/api/v1/reservations [504 Gateway Timeout, 608B, 7.4s]
+  √  HTTP 504
+  √  code = FLIGHT_SERVICE_TIMEOUT
+
+└ La reserva no quedó confirmada
+  GET http://localhost:8082/api/v1/reservations?size=20 [200 OK, 5.22kB, 229ms]
+  √  HTTP 200
+  √  No está CONFIRMED
+
+┌─────────────────────────┬───────────────────┬───────────────────┐
+│                         │          executed │            failed │
+├─────────────────────────┼───────────────────┼───────────────────┤
+│              iterations │                 1 │                 0 │
+├─────────────────────────┼───────────────────┼───────────────────┤
+│                requests │                 4 │                 0 │
+├─────────────────────────┼───────────────────┼───────────────────┤
+│            test-scripts │                 4 │                 0 │
+├─────────────────────────┼───────────────────┼───────────────────┤
+│      prerequest-scripts │                 1 │                 0 │
+├─────────────────────────┼───────────────────┼───────────────────┤
+│              assertions │                 6 │                 0 │
+├─────────────────────────┴───────────────────┴───────────────────┤
+│ total run duration: 13.8s                                       │
+├─────────────────────────────────────────────────────────────────┤
+│ total data received: 7.29kB (approx)                            │
+├─────────────────────────────────────────────────────────────────┤
+│ average response time: 3.3s [min: 229ms, max: 7.4s, s.d.: 2.6s] │
+└─────────────────────────────────────────────────────────────────┘
