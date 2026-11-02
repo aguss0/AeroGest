@@ -76,13 +76,14 @@ El realm `aerogest` (`keycloak/aerogest-realm.json`) se importa en cada arranque
 | `user1`, `user2` | USER | `DEMO_USER_PASSWORD` del `.env` |
 | cliente `reservation-service` | SERVICE | `RESERVATION_CLIENT_SECRET` del `.env` (client credentials) |
 
-Para obtener un token a mano y usarlo en Swagger:
+Para probar en Swagger, este script pide el token y lo copia al portapapeles (funciona desde cualquier carpeta):
 
 ```powershell
-. .\scripts\load-env.ps1
-$body = @{ grant_type = "password"; client_id = "aerogest-api"; username = "user1"; password = $env:DEMO_USER_PASSWORD }
-(Invoke-RestMethod -Method Post -Uri "http://localhost:8180/realms/aerogest/protocol/openid-connect/token" -Body $body).access_token
+.\scripts\get-token.ps1               # user1; también -User user2 o -User admin
 ```
+
+En Swagger: **Authorize**, pegá el token tal cual (sin escribir `Bearer`, Swagger lo agrega) y **Authorize**.
+El token vence a los 30 minutos y se carga por separado en cada servicio (8081 y 8082).
 
 ## Pruebas
 
