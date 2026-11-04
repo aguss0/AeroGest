@@ -3,6 +3,8 @@ package ar.edu.utn.frc.aerogest.flight;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import ar.edu.utn.frc.aerogest.flight.domain.Flight;
+import ar.edu.utn.frc.aerogest.flight.opensky.OpenSkyClient;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import ar.edu.utn.frc.aerogest.flight.repository.FlightRepository;
 import java.time.Duration;
 import java.time.Instant;
@@ -36,7 +38,9 @@ import org.springframework.test.web.servlet.MockMvc;
         "spring.datasource.username=test",
         "spring.datasource.password=test",
         "spring.security.oauth2.resourceserver.jwt.issuer-uri=http://localhost:8180/realms/aerogest",
-        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost:8180/realms/aerogest/protocol/openid-connect/certs"
+        "spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http://localhost:8180/realms/aerogest/protocol/openid-connect/certs",
+        // Las pruebas no consultan OpenSky real ni corren el job: lo invocan a mano con un doble del cliente
+        "aerogest.opensky.enabled=false"
 })
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
@@ -58,6 +62,10 @@ abstract class AbstractIntegrationTest {
 
     @Autowired
     protected FlightRepository flightRepository;
+
+    /** Doble de OpenSky, compartido por todas las pruebas (Mockito lo reinicia después de cada una). */
+    @MockitoBean
+    protected OpenSkyClient openSky;
 
     @BeforeEach
     void cleanDatabase() {

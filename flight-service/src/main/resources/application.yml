@@ -23,6 +23,20 @@ spring:
           issuer-uri: ${KEYCLOAK_ISSUER_URI}
           jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
 
+aerogest:
+  opensky:
+    # Verificación de la salida real con OpenSky Network, acceso anónimo (RN-16, ADR 0006)
+    enabled: ${OPENSKY_ENABLED:true}
+    base-url: ${OPENSKY_BASE_URL:https://opensky-network.org/api}
+    connect-timeout-ms: ${OPENSKY_CONNECT_TIMEOUT_MS:3000}
+    read-timeout-ms: ${OPENSKY_READ_TIMEOUT_MS:5000}
+    # Anónimo: 400 créditos por día; una corrida = 1 crédito -> cada 5 min son 288 por día
+    interval: ${OPENSKY_INTERVAL:PT5M}
+    initial-delay: ${OPENSKY_INITIAL_DELAY:PT1M}
+    look-behind: PT6H
+    look-ahead: PT2H
+    batch-size: 100
+
 logging:
   pattern:
     level: "%5p [%X{correlationId:-}]"

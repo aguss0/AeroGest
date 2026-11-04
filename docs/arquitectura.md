@@ -18,6 +18,10 @@ persistencia, pruebas y documentación de las APIs.
 **Fuera del alcance:** pagos, reembolsos, facturación, check-in, embarque, equipaje, tripulación,
 control de tráfico aéreo y asientos individuales (solo se gestiona la cantidad de plazas, ADR 0001).
 
+**Integración externa:** si un vuelo **ya despegó** no lo decide la aerolínea, ocurre en el mundo
+real. Flight Service lo consulta en **OpenSky Network** (API pública de tráfico aéreo) y cierra las
+ventas del vuelo cuando su aeronave aparece en el aire (RN-16, ADR 0006).
+
 ## 2. Actores y permisos
 
 | Actor | Rol en Keycloak | Puede |
@@ -40,7 +44,9 @@ flowchart LR
     subgraph fs["Flight Service :8081 (interno)"]
         fapi["API pública<br/>/api/v1/flights"]
         fint["API interna<br/>/internal/v1/flights"]
+        fjob["Job de salida real<br/>(cada 5 min)"]
     end
+    opensky["OpenSky Network<br/>API pública externa<br/>/api/states/all"]
     subgraph rs["Reservation Service :8082 (interno)"]
         rapi["API pública<br/>/api/v1/passengers<br/>/api/v1/reservations"]
         job["Job de reconciliación<br/>(cada 1 min)"]
@@ -58,6 +64,8 @@ flowchart LR
     rapi -- "3. client_credentials" --> kc
     rapi -- "4. JWT SERVICE<br/>asignar / liberar plaza" --> fint
     job -- "liberar plaza" --> fint
+    fjob -- "¿la aeronave está en el aire?<br/>HTTPS, anónimo" --> opensky
+    fapi -- "departure-check (ADMIN)" --> opensky
     fs --> fdb
     rs --> rdb
     gw -. "valida firma (JWKS)" .-> kc
@@ -84,6 +92,9 @@ flowchart LR
   bloquear ni consultar antes.
 - **Reservation Service** orquesta el proceso de reserva y guarda pasajeros y reservas. La referencia
   al vuelo (`flight_id`) es lógica, sin clave foránea entre bases.
+- **OpenSky Network** (ADR 0006) es la API pública externa. Flight Service la consulta desde un job y
+  desde un endpoint del ADMIN, **nunca durante una reserva**: si OpenSky cae, las reservas siguen
+  funcionando con la regla por horario (RN-04).
 - **Keycloak** es infraestructura de identidad (ADR 0002), no un microservicio de negocio.
   Los servicios solo validan la firma de los tokens y no comparten secretos entre sí.
 
@@ -151,6 +162,35 @@ vez y `@Version` hace que solo una de las dos marque la reserva.
 **Reconciliación:** cada minuto un job toma las reservas `PENDING` de más de 5 minutos, libera su
 plaza y las marca `REJECTED`. Si Flight sigue caído, lo intenta en la próxima ejecución.
 
+### Verificación de salida real (RN-16)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant J as Job de Flight (cada 5 min)<br/>o POST departure-check (ADMIN)
+    participant FDB as flights_db
+    participant O as OpenSky Network
+
+    J->>FDB: vuelos SCHEDULED con aeronave y salida entre ahora-6h y ahora+2h
+    J->>O: GET /states/all?icao24=a&icao24=b (1 crédito, sin transacción abierta)
+    alt respuesta válida
+        O-->>J: states [icao24, callsign, ..., on_ground, ...]
+        loop cada vuelo, transacción corta que lo relee
+            alt en el aire con el callsign del vuelo
+                J->>FDB: SCHEDULED → CLOSED, departure_detected_at
+            else en tierra / otro callsign / no aparece
+                J->>FDB: solo departure_checked_at
+            end
+        end
+    else caída, timeout, 429 o respuesta ininteligible
+        O--xJ: falla
+        note over J: no cambia ningún vuelo (rige RN-04 por horario)<br/>429: espera X-Rate-Limit-Retry-After-Seconds
+    end
+```
+
+Después del cierre, la asignación atómica de plazas rechaza las reservas con `FLIGHT_NOT_RESERVABLE`
+aunque el horario programado sea futuro. Detalle y alternativas en [ADR 0006](adr/0006-integracion-opensky-salida-real.md).
+
 ## 5. Estados y transiciones (RN-08)
 
 ```mermaid
@@ -169,7 +209,8 @@ stateDiagram-v2
 ```
 
 Un vuelo admite reservas solo en `SCHEDULED` y antes de su salida (RN-04). `CANCELLED` y
-`COMPLETED` son terminales: el vuelo ya no se puede modificar.
+`COMPLETED` son terminales: el vuelo ya no se puede modificar. `SCHEDULED → CLOSED` lo hace el
+ADMIN o, automáticamente, la verificación con OpenSky al detectar el despegue (RN-16).
 
 ```mermaid
 stateDiagram-v2
@@ -204,6 +245,10 @@ erDiagram
         int capacity "mayor que 0 (RN-03)"
         int seats_taken "entre 0 y capacity (RN-05)"
         varchar status "SCHEDULED, CLOSED, CANCELLED, COMPLETED"
+        varchar callsign "ICAO, opcional, junto con aircraft_icao24 (RN-16)"
+        varchar aircraft_icao24 "transpondedor, 6 hex"
+        timestamptz departure_checked_at "última consulta válida a OpenSky"
+        timestamptz departure_detected_at "despegue detectado"
         bigint version "bloqueo optimista"
     }
     SEAT_ALLOCATIONS {
@@ -244,6 +289,7 @@ Restricciones que garantizan las reglas aunque haya solicitudes simultáneas:
 | `ck_flights_times`, `ck_flights_capacity`, `ck_flights_route` | flights | RN-02, RN-03, RN-11 |
 | `ck_flights_seats` (`0 <= seats_taken <= capacity`) | flights | RN-05, última barrera ante cualquier error |
 | PK `seat_allocations.reservation_id` | flights | RN-15: una asignación por reserva |
+| `ck_flights_aircraft_pair`, `ck_flights_callsign`, `ck_flights_icao24` | flights | RN-16: callsign e icao24 juntos y con formato válido |
 | `uq_passengers_document` | reservations | RN-14 |
 | índice único parcial `uq_reservations_active_passenger_flight` (`WHERE status IN ('PENDING','CONFIRMED')`) | reservations | RN-06 |
 
@@ -275,11 +321,12 @@ reenvían sin cambios.
 
 | Método y ruta | Rol | Respuestas |
 |---|---|---|
-| `POST /api/v1/flights` | ADMIN | 201, 400 (`VALIDATION_ERROR`, `INVALID_SCHEDULE`, `INVALID_ROUTE`, `DEPARTURE_IN_PAST`, `INVALID_CAPACITY`), 409 `DUPLICATE_FLIGHT_CODE` |
+| `POST /api/v1/flights` (con `callsign` y `aircraftIcao24` opcionales) | ADMIN | 201, 400 (`VALIDATION_ERROR`, `INVALID_SCHEDULE`, `INVALID_ROUTE`, `DEPARTURE_IN_PAST`, `INVALID_CAPACITY`, `INVALID_AIRCRAFT_REFERENCE`), 409 `DUPLICATE_FLIGHT_CODE` |
 | `GET /api/v1/flights?origin&destination&status&departureFrom&departureTo&page&size` | USER, ADMIN | 200 (página) |
 | `GET /api/v1/flights/{id}` | USER, ADMIN | 200, 404 `FLIGHT_NOT_FOUND` |
 | `PUT /api/v1/flights/{id}` | ADMIN | 200, 400, 404, 409 `FLIGHT_NOT_MODIFIABLE` |
 | `PATCH /api/v1/flights/{id}/status` | ADMIN | 200, 409 `INVALID_STATUS_TRANSITION` |
+| `POST /api/v1/flights/{id}/departure-check` | ADMIN | 200 `{result: DEPARTURE_DETECTED \| ON_GROUND \| OTHER_FLIGHT \| NOT_SEEN, status, observedCallsign, observedOnGround, lastContact, ...}`, 404, 409 `FLIGHT_NOT_TRACKABLE`, 502 `OPENSKY_INVALID_RESPONSE`, 503 `OPENSKY_UNAVAILABLE` / `OPENSKY_RATE_LIMITED`, 504 `OPENSKY_TIMEOUT` |
 | `GET /internal/v1/flights/{id}/availability` | SERVICE | 200 `{flightId, status, capacity, availableSeats, acceptsReservations}` |
 | `POST /internal/v1/flights/{id}/seat-allocations` `{reservationId}` | SERVICE | 201 nueva, 200 reintento ya procesado, 404, 409 `NO_AVAILABILITY`, `FLIGHT_NOT_RESERVABLE`, `ALLOCATION_CONFLICT` |
 | `DELETE /internal/v1/flights/{id}/seat-allocations/{reservationId}` | SERVICE | 204 (idempotente), 404 |
@@ -321,6 +368,8 @@ Sin token: 401 `UNAUTHENTICATED`. Rol insuficiente o recurso ajeno: 403 `ACCESS_
   vencer. Ante un 401 de Flight se pide uno nuevo y se reintenta una sola vez.
 - **Clasificación de respuestas de Flight:** 404 y 409 con `code` conocido son rechazos definitivos.
   Caída, timeout, 5xx, 401/403 y cuerpos inválidos son resultados inciertos, y nunca se confirma.
+- **OpenSky:** conexión 3 s y respuesta 5 s (`OPENSKY_*`), acceso anónimo (400 créditos/día; el job
+  usa 288). Ver la tabla de fallas en el ADR 0006.
 - **Correlation id:** el gateway fija el `X-Correlation-Id` de cada solicitud (respeta el del
   cliente o genera uno) y lo reenvía. Va al log del gateway y de los dos servicios, Reservation lo
   reenvía a Flight y aparece en las respuestas de error.
@@ -344,5 +393,6 @@ Sin token: 401 `UNAUTHENTICATED`. Rol insuficiente o recurso ajeno: 403 `ACCESS_
 | RN-13 | No se reduce la capacidad por debajo de las plazas ocupadas | `Flight.update` |
 | RN-14 | El documento (tipo y número normalizado) es único | `DocumentType.normalize` y `uq_passengers_document` |
 | RN-15 | Asignar y liberar son idempotentes por `reservationId` | PK de `seat_allocations` y `SeatInventoryService` |
+| RN-16 | Un vuelo cuya aeronave OpenSky muestra en el aire con su callsign deja de aceptar reservas; sin respuesta válida no cambia nada | `DepartureCheckResult`, `DepartureVerificationService`, `Flight.registerDetectedDeparture` |
 
 La relación de cada regla con sus pruebas está en la [matriz de trazabilidad](trazabilidad.md).

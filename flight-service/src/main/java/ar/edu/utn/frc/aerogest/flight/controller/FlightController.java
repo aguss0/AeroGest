@@ -3,6 +3,8 @@ package ar.edu.utn.frc.aerogest.flight.controller;
 import ar.edu.utn.frc.aerogest.flight.domain.FlightStatus;
 import ar.edu.utn.frc.aerogest.flight.dto.ChangeStatusRequest;
 import ar.edu.utn.frc.aerogest.flight.dto.CreateFlightRequest;
+import ar.edu.utn.frc.aerogest.flight.dto.DepartureCheckResponse;
+import ar.edu.utn.frc.aerogest.flight.service.DepartureVerificationService;
 import ar.edu.utn.frc.aerogest.flight.dto.FlightResponse;
 import ar.edu.utn.frc.aerogest.flight.dto.FlightSearchCriteria;
 import ar.edu.utn.frc.aerogest.common.web.PageResponse;
@@ -35,9 +37,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class FlightController {
 
     private final FlightService flightService;
+    private final DepartureVerificationService departureVerificationService;
 
-    public FlightController(FlightService flightService) {
+    public FlightController(FlightService flightService, DepartureVerificationService departureVerificationService) {
         this.flightService = flightService;
+        this.departureVerificationService = departureVerificationService;
     }
 
     @PostMapping
@@ -77,5 +81,14 @@ public class FlightController {
     @Operation(summary = "Cambiar el estado de un vuelo (ADMIN)")
     public FlightResponse changeStatus(@PathVariable Long id, @Valid @RequestBody ChangeStatusRequest request) {
         return flightService.changeStatus(id, request);
+    }
+
+    @PostMapping("/{id}/departure-check")
+    @Operation(summary = "Verificar ahora en OpenSky si el vuelo ya despegó (ADMIN)",
+            description = "Consulta OpenSky por la aeronave del vuelo (icao24) sin esperar al job. Si está en el aire "
+                    + "con el callsign del vuelo, el vuelo pasa a CLOSED y deja de aceptar reservas (RN-16). "
+                    + "Si OpenSky falla, responde 503/504/502 y el vuelo no cambia.")
+    public DepartureCheckResponse checkDeparture(@PathVariable Long id) {
+        return departureVerificationService.checkNow(id);
     }
 }

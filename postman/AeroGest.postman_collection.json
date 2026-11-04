@@ -1950,6 +1950,459 @@
           ]
         }
       ]
+    },
+    {
+      "name": "09 [Internet] OpenSky: salida real del vuelo (RN-16)",
+      "description": "Requiere salida a Internet (consulta OpenSky Network real, acceso anónimo: gasta 4 de los 400 créditos diarios). No depende de las carpetas anteriores. Busca una aeronave argentina que esté en el aire en este momento, crea un vuelo con su callsign e icao24 y salida programada dentro de 1 h, y verifica que departure-check lo cierra y que ya no acepta reservas. Ejecutar sola: .\\scripts\\run-postman.ps1 -Folders \"09 [Internet] OpenSky: salida real del vuelo (RN-16)\"",
+      "item": [
+        {
+          "name": "Token ADMIN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "aerogest-api"
+                },
+                {
+                  "key": "username",
+                  "value": "admin"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminPassword}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenAdmin\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token USER (user1)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": "{{keycloakUrl}}/realms/aerogest/protocol/openid-connect/token",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "password"
+                },
+                {
+                  "key": "client_id",
+                  "value": "aerogest-api"
+                },
+                {
+                  "key": "username",
+                  "value": "user1"
+                },
+                {
+                  "key": "password",
+                  "value": "{{userPassword}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set(\"tokenUser1\", pm.response.json().access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "OpenSky: una aeronave en el aire ahora (centro de Argentina)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "https://opensky-network.org/api/states/all?lamin=-40&lomin=-66&lamax=-30&lomax=-56"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200 de OpenSky\", () => pm.response.to.have.status(200));",
+                  "const states = pm.response.json().states || [];",
+                  "// [0] icao24, [1] callsign (con espacios), [8] on_ground",
+                  "const airborne = states.find(s => s[8] === false && s[1] && /^[A-Z]{3}[0-9]+$/.test(s[1].trim()));",
+                  "pm.test(\"Hay al menos una aeronave en el aire con callsign\", () => pm.expect(airborne, \"no hay aeronaves en el aire en la zona; reintentar más tarde\").to.exist);",
+                  "if (airborne) {",
+                  "  pm.collectionVariables.set(\"osIcao24\", airborne[0]);",
+                  "  pm.collectionVariables.set(\"osCallsign\", airborne[1].trim());",
+                  "  console.log(\"Aeronave elegida\", airborne[0], airborne[1].trim());",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alta de vuelo con esa aeronave -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"code\": \"OS{{osSuffix}}\", \"origin\": \"COR\", \"destination\": \"EZE\", \"departureAt\": \"{{osDeparture}}\", \"arrivalAt\": \"{{osArrival}}\", \"capacity\": 5, \"callsign\": \"{{osCallsign}}\", \"aircraftIcao24\": \"{{osIcao24}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const suffix = String(Math.floor(Math.random() * 90000) + 10000);",
+                  "pm.collectionVariables.set(\"osSuffix\", suffix);",
+                  "const dep = new Date(Date.now() + 60 * 60 * 1000);",
+                  "pm.collectionVariables.set(\"osDeparture\", dep.toISOString().replace(/\\.\\d+Z$/, \"Z\"));",
+                  "pm.collectionVariables.set(\"osArrival\", new Date(dep.getTime() + 2 * 60 * 60 * 1000).toISOString().replace(/\\.\\d+Z$/, \"Z\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "const f = pm.response.json();",
+                  "pm.test(\"SCHEDULED con la aeronave asignada\", () => { pm.expect(f.status).to.eql(\"SCHEDULED\"); pm.expect(f.aircraftIcao24).to.eql(pm.collectionVariables.get(\"osIcao24\")); });",
+                  "pm.collectionVariables.set(\"flightOpenSky\", f.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alta: misma aeronave con otro callsign -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"code\": \"OX{{osSuffix}}\", \"origin\": \"COR\", \"destination\": \"EZE\", \"departureAt\": \"{{osDeparture}}\", \"arrivalAt\": \"{{osArrival}}\", \"capacity\": 5, \"callsign\": \"XXX999\", \"aircraftIcao24\": \"{{osIcao24}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightOtherCallsign\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "USER no puede forzar la verificación -> 403",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightOpenSky}}/departure-check"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Otro callsign: no es este vuelo -> OTHER_FLIGHT",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightOtherCallsign}}/departure-check"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"result = OTHER_FLIGHT y sigue SCHEDULED\", () => { pm.expect(r.result).to.eql(\"OTHER_FLIGHT\"); pm.expect(r.status).to.eql(\"SCHEDULED\"); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verificar la salida real -> DEPARTURE_DETECTED y CLOSED",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightOpenSky}}/departure-check"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"result = DEPARTURE_DETECTED\", () => pm.expect(r.result).to.eql(\"DEPARTURE_DETECTED\"));",
+                  "pm.test(\"El vuelo quedó CLOSED\", () => pm.expect(r.status).to.eql(\"CLOSED\"));",
+                  "pm.test(\"OpenSky lo mostró en el aire\", () => pm.expect(r.observedOnGround).to.eql(false));",
+                  "pm.test(\"Se registró el despegue\", () => pm.expect(r.departureDetectedAt).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "user1 registra un pasajero -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/passengers",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"firstName\": \"Ana\", \"lastName\": \"OpenSky\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniOpenSky}}\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"dniOpenSky\", String(10000000 + Math.floor(Math.random() * 79000000)));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"passengerOpenSky\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reservar en el vuelo que ya despegó -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenUser1}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/reservations",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"passengerId\": {{passengerOpenSky}}, \"flightId\": {{flightOpenSky}} }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = FLIGHT_NOT_RESERVABLE (la salida programada todavía es futura)\", () => pm.expect(pm.response.json().code).to.eql(\"FLIGHT_NOT_RESERVABLE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Callsign sin icao24 -> 400",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"code\": \"OY{{osSuffix}}\", \"origin\": \"COR\", \"destination\": \"EZE\", \"departureAt\": \"{{osDeparture}}\", \"arrivalAt\": \"{{osArrival}}\", \"capacity\": 5, \"callsign\": \"ARG1132\" }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"code = INVALID_AIRCRAFT_REFERENCE\", () => pm.expect(pm.response.json().code).to.eql(\"INVALID_AIRCRAFT_REFERENCE\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Alta de vuelo sin aeronave -> 201",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"code\": \"OZ{{osSuffix}}\", \"origin\": \"COR\", \"destination\": \"EZE\", \"departureAt\": \"{{osDeparture}}\", \"arrivalAt\": \"{{osArrival}}\", \"capacity\": 5 }"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set(\"flightNoAircraft\", pm.response.json().id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Vuelo sin aeronave no se verifica -> 409",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightNoAircraft}}/departure-check"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"HTTP 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"code = FLIGHT_NOT_TRACKABLE\", () => pm.expect(pm.response.json().code).to.eql(\"FLIGHT_NOT_TRACKABLE\"));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
     }
   ],
   "variable": [
@@ -1991,6 +2444,46 @@
     },
     {
       "key": "reservationAna",
+      "value": ""
+    },
+    {
+      "key": "osIcao24",
+      "value": ""
+    },
+    {
+      "key": "osCallsign",
+      "value": ""
+    },
+    {
+      "key": "osSuffix",
+      "value": ""
+    },
+    {
+      "key": "osDeparture",
+      "value": ""
+    },
+    {
+      "key": "osArrival",
+      "value": ""
+    },
+    {
+      "key": "flightOpenSky",
+      "value": ""
+    },
+    {
+      "key": "flightOtherCallsign",
+      "value": ""
+    },
+    {
+      "key": "flightNoAircraft",
+      "value": ""
+    },
+    {
+      "key": "passengerOpenSky",
+      "value": ""
+    },
+    {
+      "key": "dniOpenSky",
       "value": ""
     }
   ]

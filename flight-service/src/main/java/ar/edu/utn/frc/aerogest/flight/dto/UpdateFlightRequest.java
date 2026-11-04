@@ -1,5 +1,6 @@
 package ar.edu.utn.frc.aerogest.flight.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
@@ -23,6 +24,20 @@ public record UpdateFlightRequest(
 
         @NotNull(message = "La capacidad es obligatoria")
         @Positive(message = "La capacidad debe ser mayor a 0")
-        Integer capacity
+        Integer capacity,
+
+        @Schema(description = "Indicativo de llamada ICAO de la aeronave. Opcional, junto con aircraftIcao24. Si se omiten los dos, el vuelo queda sin aeronave", example = "ARG1132")
+        @Pattern(regexp = "^[A-Za-z0-9]{3,8}$", message = "El callsign debe tener de 3 a 8 letras o números")
+        String callsign,
+
+        @Schema(description = "Dirección del transpondedor de la aeronave, 6 dígitos hexadecimales. Opcional, junto con callsign", example = "e0659a")
+        @Pattern(regexp = "^[0-9A-Fa-f]{6}$", message = "El icao24 debe tener 6 dígitos hexadecimales")
+        String aircraftIcao24
 ) {
+
+    /** Modificación sin aeronave asignada. */
+    public UpdateFlightRequest(String origin, String destination, Instant departureAt,
+                               Instant arrivalAt, Integer capacity) {
+        this(origin, destination, departureAt, arrivalAt, capacity, null, null);
+    }
 }

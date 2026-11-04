@@ -3,6 +3,8 @@ package ar.edu.utn.frc.aerogest.flight.repository;
 import ar.edu.utn.frc.aerogest.flight.domain.Flight;
 import ar.edu.utn.frc.aerogest.flight.domain.FlightStatus;
 import java.time.Instant;
+import java.util.List;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
@@ -12,6 +14,17 @@ import org.springframework.data.repository.query.Param;
 public interface FlightRepository extends JpaRepository<Flight, Long>, JpaSpecificationExecutor<Flight> {
 
     boolean existsByCode(String code);
+
+    /** Vuelos a verificar en OpenSky (RN-16): programados, con aeronave y salida dentro de la ventana. */
+    @Query("""
+            select f from Flight f
+             where f.status = :status
+               and f.aircraftIcao24 is not null
+               and f.departureAt between :from and :to
+             order by f.departureAt, f.id
+            """)
+    List<Flight> findTrackingCandidates(@Param("status") FlightStatus status, @Param("from") Instant from,
+                                        @Param("to") Instant to, Pageable pageable);
 
     /**
      * Ocupa una plaza en UNA sola sentencia atómica (RN-04 y RN-05).

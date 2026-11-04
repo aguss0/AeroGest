@@ -48,6 +48,7 @@ public class FlightService {
         Flight flight = Flight.create(
                 request.code(), request.origin(), request.destination(),
                 request.departureAt(), request.arrivalAt(), request.capacity(), now());
+        flight.assignAircraft(request.callsign(), request.aircraftIcao24(), now());
         try {
             return FlightResponse.from(flightRepository.saveAndFlush(flight));
         } catch (DataIntegrityViolationException e) {
@@ -82,6 +83,8 @@ public class FlightService {
         Flight flight = findOrThrow(id);
         flight.update(request.origin(), request.destination(),
                 request.departureAt(), request.arrivalAt(), request.capacity(), now());
+        // PUT reemplaza los datos del vuelo: sin callsign ni icao24, el vuelo queda sin aeronave
+        flight.assignAircraft(request.callsign(), request.aircraftIcao24(), now());
         return FlightResponse.from(flight);
     }
 

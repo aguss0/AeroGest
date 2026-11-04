@@ -6,7 +6,8 @@ Son dos microservicios Spring Boot independientes, cada uno con su propia base P
 un API Gateway que es el único punto de entrada, y Keycloak como proveedor de identidad. Los tres
 componentes Java usan un JAR común (`aerogest-common`) instalado en el repositorio Maven local. El proceso central es la **reserva**: Reservation Service la confirma
 solo después de que Flight Service ocupa la plaza, sin sobreventa aunque lleguen solicitudes
-simultáneas y sin confirmar nada si Flight no responde.
+simultáneas y sin confirmar nada si Flight no responde. Flight Service consulta además la API
+pública de **OpenSky Network** para saber si un vuelo ya despegó de verdad y cerrar sus ventas (RN-16).
 
 | Componente | Puerto | Responsabilidad |
 |---|---|---|
@@ -17,6 +18,7 @@ simultáneas y sin confirmar nada si Flight no responde.
 | PostgreSQL de vuelos | 5433 | Base exclusiva de flight-service |
 | PostgreSQL de reservas | 5434 | Base exclusiva de reservation-service |
 | aerogest-common | — | JAR común: roles de Keycloak, correlation id, formato de errores y paginación |
+| OpenSky Network (externo) | — | API pública de tráfico aéreo, acceso anónimo: ¿la aeronave del vuelo ya está en el aire? (ADR 0006) |
 
 Los microservicios no publican puertos en Docker: solo el gateway (ADR 0005).
 
@@ -27,7 +29,8 @@ Estado: implementación y verificación completas (Fases 1 a 4). Documentación 
 | Documento | Contenido |
 |---|---|
 | [docs/arquitectura.md](docs/arquitectura.md) | Dominio, MVP, actores, diagrama de arquitectura, secuencia de la reserva, estados, modelo de datos, contratos REST y reglas de negocio numeradas |
-| [docs/adr/](docs/adr/) | Decisiones de arquitectura: diseño inicial (0001), Keycloak (0002), flujo de reserva y consistencia (0003), componente común (0004), API Gateway y trusted zone (0005) |
+| [docs/adr/](docs/adr/) | Decisiones de arquitectura: diseño inicial (0001), Keycloak (0002), flujo de reserva y consistencia (0003), componente común (0004), API Gateway y trusted zone (0005), integración con OpenSky (0006) |
+| [docs/propuesta-tpi-2026-v2.md](docs/propuesta-tpi-2026-v2.md) | Respuestas al formulario de propuesta, con los diagramas C4 (C1 y C2) |
 | [docs/trazabilidad.md](docs/trazabilidad.md) | Matriz que vincula requisitos y reglas con su implementación, sus pruebas y los criterios de evaluación |
 | [docs/evidencias/](docs/evidencias/) | Salidas de las pruebas automáticas, de los smoke tests y de la colección Postman |
 | [docs/guion-defensa.md](docs/guion-defensa.md) | Guion de la demostración y preguntas probables |
@@ -102,14 +105,24 @@ Primero hay que instalar el componente común: `.\scripts\build-common.ps1` corr
 
 ```powershell
 cd common;              .\mvnw.cmd install   # 11 pruebas
-cd flight-service;      .\mvnw.cmd test      # 69 pruebas
+cd flight-service;      .\mvnw.cmd test      # 113 pruebas
 cd reservation-service; .\mvnw.cmd test      # 113 pruebas
 cd api-gateway;         .\mvnw.cmd test      # 11 pruebas
 ```
 
 Incluyen reglas de dominio, servicios con dobles, API de punta a punta contra una base real,
 seguridad (401, 403, recursos ajenos), fallos de integración (caída, timeout, respuesta inválida)
-y concurrencia (20 solicitudes por la última plaza, reservas y cancelaciones simultáneas).
+y concurrencia (20 solicitudes por la última plaza, reservas y cancelaciones simultáneas). La
+integración con OpenSky se prueba con un servidor HTTP falso y un doble del cliente: ninguna prueba
+automática sale a Internet.
+
+### OpenSky en vivo
+Para ver la regla RN-16 con un avión real: buscá una aeronave en el aire en
+`https://opensky-network.org/api/states/all?lamin=-40&lomin=-66&lamax=-30&lomax=-56` (posición 8
+`false`, callsign en la posición 1), creá un vuelo con ese `callsign` y `aircraftIcao24` y llamá a
+`POST /api/v1/flights/{id}/departure-check` como admin (carpeta 09 de Postman). Ejemplo en
+[docs/evidencias/opensky-en-vivo.md](docs/evidencias/opensky-en-vivo.md). Sin cuenta: 400 créditos
+por día; el job automático usa 288.
 
 ### Colección Postman
 Importá `postman/AeroGest.postman_collection.json` y `postman/aerogest-local.postman_environment.json`,
@@ -150,5 +163,4 @@ una indica qué comando de Docker ejecutar antes y después.
 | `docs/` | Arquitectura, ADRs, trazabilidad, evidencias y guion de defensa |
 
 ## Pendiente
-- Integración con una API pública externa (requisito del enunciado 2026).
-- Diagramas C4 (C1 y C2) que reflejen la arquitectura implementada.
+- Renderizar como imagen los diagramas C4 (definidos en PlantUML en la propuesta v2) para la entrega.

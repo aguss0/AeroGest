@@ -24,6 +24,7 @@ Los nombres de las pruebas son los métodos JUnit; la salida de cada corrida est
 | RN-13 Capacidad ≥ ocupadas | FS `Flight.update` | `FlightTest.noPermiteReducirLaCapacidadPorDebajoDeLasPlazasOcupadas_RN13` | — |
 | RN-14 Documento único | RS `DocumentType.normalize`, `PassengerService.register`, `uq_passengers_document` | `PassengerTest.normalizaElDocumento…_RN14`, `PassengerServiceTest.rechazaUnDocumentoYaRegistrado_RN14`, `…traduceLaRestriccionUnica…_RN14`, `ReservationApiIntegrationTest.registraUnPasajeroYRechazaElDocumentoDuplicado_RN14` | PM 02, SR |
 | RN-15 Idempotencia | FS PK `seat_allocations.reservation_id`, `SeatInventoryService` | `SeatInventoryServiceTest.unReintentoDeLaMismaReservaNoOcupaOtraPlaza_RN15`, `SeatAllocationIntegrationTest.repetirLaAsignacionNoOcupaOtraPlaza_RN15`, `…diezSolicitudesSimultaneasDeLaMismaReserva…_RN15` | SF |
+| RN-16 Salida real (OpenSky) | FS `DepartureCheckResult.evaluate`, `DepartureVerificationService`, `DepartureVerificationJob`, `Flight.assignAircraft/registerDetectedDeparture`, `HttpOpenSkyClient`, migración `V2` (ADR 0006) | `DepartureCheckResultTest` (5), `FlightTest.elDespegueDetectadoCierraElVueloAunqueLaSalidaProgramadaSeaFutura_RN16`, `…callsignEIcao24VanJuntos_RN16`, `DepartureVerificationIntegrationTest.siLaAeronaveEstaEnElAireConSuCallsignElVueloSeCierraYNoAceptaReservas_RN16`, `…elJobConsultaUnaSolaVezLosVuelosDeLaVentanaYCierraLosQueDespegaron`, `…siOpenSkyFallaElJobNoCambiaNingunVuelo`, `DepartureVerificationServiceTest.con429SeSalteanLasCorridasHastaElTiempoIndicado`, `HttpOpenSkyClientTest` (12) | PM 09; [evidencias/opensky-en-vivo.md](evidencias/opensky-en-vivo.md) (OpenSky real) |
 
 ## 2. Escenarios de prueba obligatorios (sección 11 del enunciado)
 
@@ -62,11 +63,11 @@ un criterio esté cumplido: indica qué evidencia lo respalda y cómo se verific
 |---|---|---|
 | ARQ-01 Arquitectura y diseño de microservicios | Dos servicios con base propia; Reservation no accede a la base de Flight; capas controller/service/domain/repository; ADRs | `docs/arquitectura.md` §3; `docker-compose.yml`; mostrar que `reservation-service` no tiene configuración de `flights_db` |
 | SEG-01 Seguridad y control de acceso | Keycloak con 3 roles; resource servers; propiedad por `sub`; 401/403 con formato uniforme; secretos en `.env` | PM 00 a 04; pruebas `…401`, `…403`, `…Ajena_403`; `.env.example` sin secretos reales |
-| TEC-01 Calidad técnica | DTOs, validación, manejo central de errores (RFC 7807 + `code`), transacciones cortas, reglas en el dominio; 185 pruebas | `.\mvnw.cmd test` en los dos servicios; [evidencias/](evidencias/) |
-| INF-01 Persistencia, reutilización y despliegue | Migraciones Flyway versionadas; restricciones que garantizan reglas; Dockerfiles multi-etapa; Compose con perfiles | `docker compose --profile apps up -d --build` desde cero; `\dt` en cada base |
+| TEC-01 Calidad técnica | DTOs, validación, manejo central de errores (RFC 7807 + `code`), transacciones cortas, reglas en el dominio; 248 pruebas | `.\mvnw.cmd test` en cada proyecto; [evidencias/](evidencias/) |
+| INF-01 Persistencia, reutilización y despliegue | Migraciones Flyway versionadas; restricciones que garantizan reglas; componente común; Dockerfiles multi-etapa; Compose con el sistema completo | `docker compose up -d --build` desde cero; `\dt` en cada base |
 | NEG-01 Proceso de negocio central | Reserva `PENDING` → plaza en Flight → `CONFIRMED`/`REJECTED`; cancelación que libera la plaza | Diagrama de secuencia; PM 03 y 04; SR |
-| NEG-02 Reglas de negocio | RN-01 a RN-15 implementadas y probadas | Sección 1 de esta matriz |
-| INT-01 Integración entre servicios | API interna con token de servicio, idempotencia, timeouts, clasificación de errores, compensación, reconciliación, correlation id | `HttpFlightGatewayTest`; SR `-IncludeFailures`; logs de los dos servicios con el mismo `correlationId` |
+| NEG-02 Reglas de negocio | RN-01 a RN-16 implementadas y probadas | Sección 1 de esta matriz |
+| INT-01 Integración entre servicios y con sistemas externos | API interna con token de servicio, idempotencia, timeouts, clasificación de errores, compensación, reconciliación, correlation id; OpenSky con tolerancia a fallas | `HttpFlightGatewayTest`, `HttpOpenSkyClientTest`; SR `-IncludeFailures`; PM 09; logs de los dos servicios con el mismo `correlationId` |
 | ALC-01 Cumplimiento del alcance | Todo el alcance del MVP (§1 de arquitectura); nada de lo excluido | `docs/arquitectura.md` §1 y §7 |
 | DES-01 Complejidad y desafío | Consistencia entre dos bases sin transacción distribuida; concurrencia por la última plaza; resultados inciertos | ADR 0003; pruebas de concurrencia; demostración con `docker pause` |
 | PRE-01 Presentación y defensa | Guion con tiempos y preguntas probables | [guion-defensa.md](guion-defensa.md) |
@@ -75,8 +76,8 @@ un criterio esté cumplido: indica qué evidencia lo respalda y cómo se verific
 
 ## 4. Requisitos de arquitectura del enunciado 2026
 
-Esta sección sigue el enunciado preliminar del 2026-10-05. La matriz completa contra ese enunciado se
-cierra cuando estén la integración con la API externa y los diagramas C4.
+Esta sección sigue el enunciado preliminar del 2026-10-05. Los diagramas C4 (C1 y C2) están en la
+propuesta, [propuesta-tpi-2026-v2.md](propuesta-tpi-2026-v2.md) §05 y §06.
 
 | Requisito | Implementación | Pruebas automáticas | Contra el sistema real |
 |---|---|---|---|
@@ -84,4 +85,5 @@ cierra cuando estén la integración con la API externa y los diagramas C4.
 | Security Filter en el gateway | `SecurityConfig` del gateway (JWT de Keycloak, rol por ruta, `/internal/**` denegado) | `…sinTokenDevuelve401ConElFormatoComunYNoLlegaAlServicio`, `…soloElAdminCreaVuelos`, `…laApiInternaNoSePublicaNiSiquieraParaElRolService`, `…elRolServiceNoTieneAccesoALaApiPublica`, `…unaRutaNoPublicadaSeDeniega` | PM 01 (API interna → 403), SR (sección Seguridad) |
 | Gateway ante un servicio caído o lento | `GatewayErrorHandler`: 503 `UPSTREAM_UNAVAILABLE`, 504 `UPSTREAM_TIMEOUT` | `…servicioCaido_503ConElFormatoComun`, `…servicioQueNoRespondeATiempo_504` | `docker stop aerogest-reservation-service` y cualquier llamada a `/api/v1/reservations` |
 | Trusted zone | Doble validación del JWT (gateway y servicios), `sub` en Reservation, token `SERVICE` en la llamada interna (ADR 0002 y 0005) | Las pruebas de seguridad de la sección 1 (RN-09) siguen vigentes en cada servicio | SR |
+| API pública externa con uso genuino de negocio | OpenSky Network: FS `HttpOpenSkyClient`, `DepartureVerificationService`, `DepartureVerificationJob`, `POST /api/v1/flights/{id}/departure-check`; regla RN-16 (ADR 0006) | `HttpOpenSkyClientTest` (formato, 429, timeout, caída, JSON inválido), `DepartureVerificationIntegrationTest` (17), `DepartureVerificationServiceTest` (4) | PM 09; [evidencias/opensky-en-vivo.md](evidencias/opensky-en-vivo.md) |
 | Componente común en JAR Maven usado por los dos servicios | `common/` → `aerogest-common:1.0.0` en `.m2`; dependencia en los `pom.xml` de los dos servicios y del gateway (ADR 0004) | `common/`: `KeycloakRealmRoleConverterTest` (3), `CorrelationIdFilterTest` (2), `ProblemResponsesTest` (3), `AerogestCommonAutoConfigurationTest` (3) | `docker compose build`: cada imagen instala el JAR antes de compilar el servicio |

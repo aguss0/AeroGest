@@ -17,5 +17,11 @@ public enum ErrorCode {
     FLIGHT_NOT_RESERVABLE,        // RN-04
     NO_AVAILABILITY,              // RN-05
     ALLOCATION_CONFLICT,          // RN-15: la reserva ya está asociada a otro vuelo o su plaza ya fue liberada
-    CONCURRENT_MODIFICATION
+    CONCURRENT_MODIFICATION,
+    INVALID_AIRCRAFT_REFERENCE,   // RN-16: callsign e icao24 van juntos
+    FLIGHT_NOT_TRACKABLE,         // RN-16: sin aeronave asignada o ya no está SCHEDULED
+    OPENSKY_UNAVAILABLE,          // OpenSky caído o con un error propio
+    OPENSKY_TIMEOUT,              // OpenSky no respondió a tiempo
+    OPENSKY_RATE_LIMITED,         // se agotaron los créditos de OpenSky (429)
+    OPENSKY_INVALID_RESPONSE      // OpenSky respondió algo que no se puede interpretar
 }

@@ -4,6 +4,7 @@
 #   . .\scripts\load-env.ps1
 #   .\scripts\run-postman.ps1                                   # carpetas automáticas 00 a 06
 #   .\scripts\run-postman.ps1 -Folders "07 [Manual] Flight Service apagado (RN-10)"   # con Flight detenido
+#   .\scripts\run-postman.ps1 -Folders "09 [Internet] OpenSky: salida real del vuelo (RN-16)"   # OpenSky real
 param(
     [string[]]$Folders = @(
         "00 Autenticación (Keycloak)",

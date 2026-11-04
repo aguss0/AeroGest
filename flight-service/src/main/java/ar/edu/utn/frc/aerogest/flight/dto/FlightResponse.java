@@ -14,7 +14,11 @@ public record FlightResponse(
         Instant arrivalAt,
         int capacity,
         int availableSeats,
-        FlightStatus status
+        FlightStatus status,
+        String callsign,
+        String aircraftIcao24,
+        Instant departureCheckedAt,
+        Instant departureDetectedAt
 ) {
 
     public static FlightResponse from(Flight flight) {
@@ -27,6 +31,10 @@ public record FlightResponse(
                 flight.getArrivalAt(),
                 flight.getCapacity(),
                 flight.availableSeats(),
-                flight.getStatus());
+                flight.getStatus(),
+                flight.getCallsign(),
+                flight.getAircraftIcao24(),
+                flight.getDepartureCheckedAt(),
+                flight.getDepartureDetectedAt());
     }
 }

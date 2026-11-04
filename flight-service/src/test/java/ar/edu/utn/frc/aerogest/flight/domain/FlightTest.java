@@ -116,4 +116,70 @@ class FlightTest {
         assertThat(flight.getCapacity()).isEqualTo(40);
         assertThat(flight.availableSeats()).isZero();
     }
+
+    // ---------- aeronave y salida real (RN-16) ----------
+
+    @Test
+    void asignaLaAeronaveNormalizandoCallsignEIcao24() {
+        Flight flight = validFlight();
+
+        flight.assignAircraft(" arg1132 ", "E0659A", NOW);
+
+        assertThat(flight.getCallsign()).isEqualTo("ARG1132");
+        assertThat(flight.getAircraftIcao24()).isEqualTo("e0659a");
+        assertThat(flight.isTrackable()).isTrue();
+    }
+
+    @Test
+    void callsignEIcao24VanJuntos_RN16() {
+        assertRule(() -> validFlight().assignAircraft("ARG1132", null, NOW), ErrorCode.INVALID_AIRCRAFT_REFERENCE);
+        assertRule(() -> validFlight().assignAircraft(null, "e0659a", NOW), ErrorCode.INVALID_AIRCRAFT_REFERENCE);
+        assertRule(() -> validFlight().assignAircraft(" ", "e0659a", NOW), ErrorCode.INVALID_AIRCRAFT_REFERENCE);
+    }
+
+    @Test
+    void sinAeronaveNoSeVerifica() {
+        Flight flight = validFlight();
+        flight.assignAircraft(null, null, NOW);
+
+        assertThat(flight.getCallsign()).isNull();
+        assertThat(flight.isTrackable()).isFalse();
+    }
+
+    @Test
+    void cambiarDeAeronaveDescartaLaUltimaVerificacion() {
+        Flight flight = validFlight();
+        flight.assignAircraft("ARG1132", "e0659a", NOW);
+        flight.recordDepartureCheck(NOW);
+
+        flight.assignAircraft("ARG1132", "e0659a", NOW);
+        assertThat(flight.getDepartureCheckedAt()).isEqualTo(NOW);
+
+        flight.assignAircraft("ARG1520", "e06442", NOW);
+        assertThat(flight.getDepartureCheckedAt()).isNull();
+    }
+
+    @Test
+    void elDespegueDetectadoCierraElVueloAunqueLaSalidaProgramadaSeaFutura_RN16() {
+        Flight flight = validFlight();
+        flight.assignAircraft("ARG1132", "e0659a", NOW);
+
+        flight.registerDetectedDeparture(NOW);
+
+        assertThat(flight.getStatus()).isEqualTo(FlightStatus.CLOSED);
+        assertThat(flight.getDepartureDetectedAt()).isEqualTo(NOW);
+        assertThat(flight.getDepartureCheckedAt()).isEqualTo(NOW);
+        assertThat(flight.isReservable(NOW)).isFalse();
+        assertThat(flight.isTrackable()).isFalse();
+    }
+
+    @Test
+    void soloSeCierraPorDespegueUnVueloScheduled() {
+        Flight flight = validFlight();
+        flight.assignAircraft("ARG1132", "e0659a", NOW);
+        flight.changeStatus(FlightStatus.CANCELLED, NOW);
+
+        assertRule(() -> flight.registerDetectedDeparture(NOW), ErrorCode.FLIGHT_NOT_TRACKABLE);
+        assertThat(flight.getStatus()).isEqualTo(FlightStatus.CANCELLED);
+    }
 }

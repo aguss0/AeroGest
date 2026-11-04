@@ -26,6 +26,8 @@ Duración estimada: 20 minutos de presentación y demostración, más preguntas.
 - Un JAR común (`aerogest-common`, en el `.m2`) lo usan los tres: roles, correlation id, formato de
   error y paginación. Lo propio de cada servicio (códigos de error, reglas) no está ahí (ADR 0004).
 - Reservation llama a la API interna de Flight con su propio token de servicio (client credentials).
+- API pública externa: Flight consulta **OpenSky Network** para saber si un vuelo ya despegó de verdad
+  y, si es así, cierra sus ventas (RN-16, ADR 0006). Nunca durante una reserva.
 
 ## 3. Proceso de reserva (4 min) — diagrama de secuencia §4
 Puntos a remarcar:
@@ -52,11 +54,15 @@ Puntos a remarcar:
 | 9 | `docker start …`, luego `docker pause …` y carpeta 08 | 504 `FLIGHT_SERVICE_TIMEOUT` en unos 3 segundos. Al final `docker unpause …`: en los logs aparece el mismo `correlationId` en el gateway y en los dos servicios |
 | 10 | Swagger en `:8080/swagger-ui.html` | Los dos servicios en un solo Swagger, detrás del gateway; la API interna no aparece |
 | 11 | Postman, carpeta 01: `USER no puede usar la API interna` | 403 del gateway: `/internal/**` no se publica |
+| 12 | Postman, carpeta 09 (necesita Internet) | OpenSky real: se elige un avión que está volando ahora, se crea un vuelo con su callsign y salida dentro de 1 h, `departure-check` lo pasa a `CLOSED` y la reserva da 409 `FLIGHT_NOT_RESERVABLE`. Explicar que el job hace lo mismo cada 5 min, fuera del camino de la reserva |
+
+Si no hay Internet en la defensa: mostrar [evidencias/opensky-en-vivo.md](evidencias/opensky-en-vivo.md) y
+la prueba `DepartureVerificationIntegrationTest.siOpenSkyFallaElJobNoCambiaNingunVuelo`.
 
 Plan B si algo falla en vivo: mostrar [evidencias/](evidencias/) con las salidas guardadas.
 
 ## 5. Calidad y pruebas (2 min)
-- 204 pruebas automáticas (common 11, Flight 69, Reservation 113, gateway 11): dominio, servicios con dobles, API completa contra PostgreSQL real
+- 248 pruebas automáticas (common 11, Flight 113, Reservation 113, gateway 11): dominio, servicios con dobles, API completa contra PostgreSQL real
   (Testcontainers) y concurrencia. Verifican la respuesta HTTP y el efecto en la base.
 - Matriz de trazabilidad: cada regla con su implementación y sus pruebas (`docs/trazabilidad.md`).
 - Historial por incrementos: `git log --oneline`.
@@ -126,6 +132,29 @@ Lo que es convención del sistema: cómo se leen los roles de Keycloak, el corre
 error y la paginación. Los códigos de error, el mapeo a HTTP y las reglas de seguridad de cada
 servicio quedaron en el servicio: si estuvieran en el JAR, un cambio de negocio obligaría a publicar
 una versión nueva para todos (ADR 0004).
+
+**¿Por qué necesitan OpenSky? ¿No alcanza con el horario?**
+El horario es lo que la aerolínea planeó; que el avión despegó es un hecho del mundo real. Un vuelo
+que sale antes o cuyo estado nadie actualizó seguiría vendiendo plazas. OpenSky es la fuente externa
+de ese hecho: no es un dato que se pueda guardar como configuración.
+
+**¿Cómo saben que el avión que ven es el de su vuelo?**
+Por dos datos: el `icao24` identifica el avión (transpondedor) y el callsign identifica el vuelo que
+está haciendo. Exigimos los dos: el mismo avión hace varios tramos por día con distinto callsign. Si
+está en el aire con otro callsign, el resultado es `OTHER_FLIGHT` y no se cierra nada.
+
+**¿Qué pasa si OpenSky está caído, lento o se quedan sin créditos?**
+No cambia ningún vuelo y sigue rigiendo la regla por horario (RN-04). El job lo registra y reintenta
+en la próxima corrida; ante un 429 espera lo que indica OpenSky. Las reservas no se enteran porque
+nunca consultan OpenSky. El endpoint manual responde 503/504/502 y aclara que el vuelo no cambió.
+
+**¿Por qué el job está en Flight y no en Reservation?**
+Porque el estado del vuelo es de Flight. Reservation se entera como siempre: la asignación atómica
+rechaza el vuelo `CLOSED` con `FLIGHT_NOT_RESERVABLE`. No hubo que tocar Reservation.
+
+**¿Cuántas consultas hacen?**
+Una por corrida con todos los `icao24` juntos (1 crédito), cada 5 minutos: 288 por día de los 400 del
+acceso anónimo. Solo se consultan los vuelos con salida entre 6 h antes y 2 h después de ahora.
 
 **¿Por qué Keycloak y no JWT propios?**
 Lo recomendó la cátedra y evita guardar contraseñas y firmar tokens en nuestro código. Los servicios
