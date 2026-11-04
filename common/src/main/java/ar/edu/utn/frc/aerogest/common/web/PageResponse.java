@@ -1,4 +1,4 @@
-package ar.edu.utn.frc.aerogest.flight.dto;
+package ar.edu.utn.frc.aerogest.common.web;
 
 import java.util.List;
 import org.springframework.data.domain.Page;

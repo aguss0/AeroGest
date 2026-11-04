@@ -72,3 +72,16 @@ un criterio esté cumplido: indica qué evidencia lo respalda y cómo se verific
 | PRE-01 Presentación y defensa | Guion con tiempos y preguntas probables | [guion-defensa.md](guion-defensa.md) |
 | API-01 Colección de llamadas y pruebas | Colección organizada por carpetas, parametrizada por entorno, con tests en cada solicitud y datos únicos por corrida | `.\scripts\run-postman.ps1`; [evidencias/postman.txt](evidencias/postman.txt) |
 | DOC-01 Evolución y proceso de trabajo | Historial de commits por fase y por incremento (R1 a R4); ADRs con fecha | `git log --oneline` |
+
+## 4. Requisitos de arquitectura del enunciado 2026
+
+Esta sección sigue el enunciado preliminar del 2026-10-05. La matriz completa contra ese enunciado se
+cierra cuando estén la integración con la API externa y los diagramas C4.
+
+| Requisito | Implementación | Pruebas automáticas | Contra el sistema real |
+|---|---|---|---|
+| API Gateway como punto de entrada, sin exponer la topología | `api-gateway/` (rutas en `application.yml`); en Compose solo el gateway publica puerto (ADR 0005) | `ApiGatewayIntegrationTest.unUsuarioConsultaVuelosYLaSolicitudLlegaAFlightConElCorrelationId`, `…laDocumentacionEsPublicaYSoloExponeElGrupoPublicoDelServicio` | PM 00 a 08 y SR, todos por `:8080` |
+| Security Filter en el gateway | `SecurityConfig` del gateway (JWT de Keycloak, rol por ruta, `/internal/**` denegado) | `…sinTokenDevuelve401ConElFormatoComunYNoLlegaAlServicio`, `…soloElAdminCreaVuelos`, `…laApiInternaNoSePublicaNiSiquieraParaElRolService`, `…elRolServiceNoTieneAccesoALaApiPublica`, `…unaRutaNoPublicadaSeDeniega` | PM 01 (API interna → 403), SR (sección Seguridad) |
+| Gateway ante un servicio caído o lento | `GatewayErrorHandler`: 503 `UPSTREAM_UNAVAILABLE`, 504 `UPSTREAM_TIMEOUT` | `…servicioCaido_503ConElFormatoComun`, `…servicioQueNoRespondeATiempo_504` | `docker stop aerogest-reservation-service` y cualquier llamada a `/api/v1/reservations` |
+| Trusted zone | Doble validación del JWT (gateway y servicios), `sub` en Reservation, token `SERVICE` en la llamada interna (ADR 0002 y 0005) | Las pruebas de seguridad de la sección 1 (RN-09) siguen vigentes en cada servicio | SR |
+| Componente común en JAR Maven usado por los dos servicios | `common/` → `aerogest-common:1.0.0` en `.m2`; dependencia en los `pom.xml` de los dos servicios y del gateway (ADR 0004) | `common/`: `KeycloakRealmRoleConverterTest` (3), `CorrelationIdFilterTest` (2), `ProblemResponsesTest` (3), `AerogestCommonAutoConfigurationTest` (3) | `docker compose build`: cada imagen instala el JAR antes de compilar el servicio |

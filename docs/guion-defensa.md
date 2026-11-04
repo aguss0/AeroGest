@@ -3,12 +3,11 @@
 Duración estimada: 20 minutos de presentación y demostración, más preguntas.
 
 ## Antes de la defensa (15 minutos antes)
-1. Abrir Docker Desktop y ejecutar `docker compose --profile apps up -d`. Keycloak tarda hasta 3 minutos.
-2. Verificar que responden `http://localhost:8180/realms/aerogest`, `http://localhost:8081/actuator/health`
-   y `http://localhost:8082/actuator/health`.
+1. Abrir Docker Desktop y ejecutar `docker compose up -d`. Keycloak tarda hasta 3 minutos.
+2. Verificar que responden `http://localhost:8180/realms/aerogest` y `http://localhost:8080/actuator/health`.
 3. En una terminal: `. .\scripts\load-env.ps1`.
 4. Dejar abiertos: este guion, `docs/arquitectura.md` (diagramas), Postman con la colección importada
-   y el entorno completo, y una terminal con `docker compose logs -f reservation-service flight-service`.
+   y el entorno completo, y una terminal con `docker compose logs -f api-gateway reservation-service flight-service`.
 5. Ensayo rápido: `.\scripts\smoke-reservations.ps1` debe terminar con 0 fallidas.
 
 ## 1. El problema (2 min)
@@ -19,9 +18,13 @@ Duración estimada: 20 minutos de presentación y demostración, más preguntas.
 - Fuera de alcance: pagos, check-in, asientos individuales (solo cantidad de plazas).
 
 ## 2. Arquitectura (3 min) — `docs/arquitectura.md` §3
+- Un API Gateway es el único punto de entrada (:8080): enruta, valida el JWT y el rol por ruta y no
+  publica la API interna. Los servicios no publican puertos (ADR 0005).
 - Dos microservicios, cada uno dueño de su base. Reservation nunca lee la base de Flight.
 - Flight es la fuente de verdad de las plazas; Reservation orquesta la reserva.
-- Keycloak emite los tokens; los servicios solo validan la firma. Tres roles: ADMIN, USER, SERVICE.
+- Keycloak emite los tokens; el gateway y los servicios solo validan la firma. Tres roles: ADMIN, USER, SERVICE.
+- Un JAR común (`aerogest-common`, en el `.m2`) lo usan los tres: roles, correlation id, formato de
+  error y paginación. Lo propio de cada servicio (códigos de error, reglas) no está ahí (ADR 0004).
 - Reservation llama a la API interna de Flight con su propio token de servicio (client credentials).
 
 ## 3. Proceso de reserva (4 min) — diagrama de secuencia §4
@@ -46,13 +49,14 @@ Puntos a remarcar:
 | 6 | Carpeta 04: cancelar dos veces | 200 y luego 409; la plaza vuelve a 2 una sola vez |
 | 7 | Terminal: `.\scripts\smoke-reservations.ps1` (sección "Última plaza") | 10 reservas simultáneas: 1 confirmada, 9 `NO_AVAILABILITY`, 0 plazas |
 | 8 | `docker stop aerogest-flight-service` y carpeta 07 | 503 `FLIGHT_SERVICE_UNAVAILABLE`; la reserva no queda `CONFIRMED` |
-| 9 | `docker start …`, luego `docker pause …` y carpeta 08 | 504 `FLIGHT_SERVICE_TIMEOUT` en unos 3 segundos. Al final `docker unpause …`: en los logs aparece el mismo `correlationId` en los dos servicios |
-| 10 | Swagger en `:8082/swagger-ui.html` | Contratos documentados y botón *Authorize* |
+| 9 | `docker start …`, luego `docker pause …` y carpeta 08 | 504 `FLIGHT_SERVICE_TIMEOUT` en unos 3 segundos. Al final `docker unpause …`: en los logs aparece el mismo `correlationId` en el gateway y en los dos servicios |
+| 10 | Swagger en `:8080/swagger-ui.html` | Los dos servicios en un solo Swagger, detrás del gateway; la API interna no aparece |
+| 11 | Postman, carpeta 01: `USER no puede usar la API interna` | 403 del gateway: `/internal/**` no se publica |
 
 Plan B si algo falla en vivo: mostrar [evidencias/](evidencias/) con las salidas guardadas.
 
 ## 5. Calidad y pruebas (2 min)
-- 185 pruebas automáticas: dominio, servicios con dobles, API completa contra PostgreSQL real
+- 204 pruebas automáticas (common 11, Flight 69, Reservation 113, gateway 11): dominio, servicios con dobles, API completa contra PostgreSQL real
   (Testcontainers) y concurrencia. Verifican la respuesta HTTP y el efecto en la base.
 - Matriz de trazabilidad: cada regla con su implementación y sus pruebas (`docs/trazabilidad.md`).
 - Historial por incrementos: `git log --oneline`.
@@ -61,7 +65,6 @@ Plan B si algo falla en vivo: mostrar [evidencias/](evidencias/) con las salidas
 - Cancelar un vuelo no cancela sus reservas automáticamente.
 - No se impide cancelar después de la salida (no lo pide el enunciado).
 - Carrera teórica entre una creación de más de 5 minutos y el job; los timeouts la hacen improbable.
-- Pendiente con la cátedra: Keycloak como infraestructura y no como tercer microservicio.
 
 ## Preguntas probables
 
@@ -106,6 +109,23 @@ Flight y vuelve en el cuerpo de los errores. Ejemplo real en
 Chocan en la clave primaria de `seat_allocations` (una fila por reserva) y Flight reintenta la que
 perdió, que ya ve el resultado de la otra. Pasó de verdad en el escenario `docker pause` y el
 resultado quedó consistente: está documentado en las evidencias.
+
+**¿Por qué validan el token en el gateway y otra vez en cada servicio?**
+El gateway es la primera barrera: corta lo que no tiene token o rol válido antes de llegar a un servicio.
+Pero no sabe de quién es cada reserva (eso depende de los datos), y si los servicios confiaran en
+encabezados puestos por el gateway, cualquiera dentro de la red podría falsificarlos. Validar un JWT
+es barato: la clave pública queda en caché (ADR 0005).
+
+**¿Por qué Reservation llama a Flight directo y no por el gateway?**
+El gateway es para el tráfico que entra de afuera. Pasar la llamada interna por él agregaría un salto y
+un punto de falla al proceso de reserva, y obligaría a publicar `/internal/**`. La llamada sigue
+autenticada: Flight exige el rol SERVICE.
+
+**¿Qué pusieron en el JAR común y qué no?**
+Lo que es convención del sistema: cómo se leen los roles de Keycloak, el correlation id, el formato de
+error y la paginación. Los códigos de error, el mapeo a HTTP y las reglas de seguridad de cada
+servicio quedaron en el servicio: si estuvieran en el JAR, un cambio de negocio obligaría a publicar
+una versión nueva para todos (ADR 0004).
 
 **¿Por qué Keycloak y no JWT propios?**
 Lo recomendó la cátedra y evita guardar contraseñas y firmar tokens en nuestro código. Los servicios

@@ -1,0 +1,11 @@
+# Solo para diagnóstico, no es parte del despliegue: publica los microservicios en 127.0.0.1
+# para probar la API interna de Flight Service sin pasar por el gateway (scripts/smoke-flights.ps1)
+# o mirar el Swagger de cada servicio por separado.
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+services:
+  flight-service:
+    ports:
+      - "127.0.0.1:8081:8081"
+  reservation-service:
+    ports:
+      - "127.0.0.1:8082:8082"

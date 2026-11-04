@@ -1,0 +1,59 @@
+server:
+  port: ${GATEWAY_PORT:8080}
+
+spring:
+  application:
+    name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Igual que en los servicios: claves desde jwk-set-uri y "iss" validado contra issuer-uri
+          issuer-uri: ${KEYCLOAK_ISSUER_URI}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI}
+  cloud:
+    gateway:
+      server:
+        webflux:
+          httpclient:
+            connect-timeout: ${GATEWAY_CONNECT_TIMEOUT_MS:2000}
+            # Mayor que el peor caso de una reserva en Reservation Service (token + llamada a
+            # Flight + compensación), para que el gateway no corte una reserva que se está resolviendo.
+            response-timeout: ${GATEWAY_RESPONSE_TIMEOUT:15s}
+          routes:
+            - id: flights
+              uri: ${FLIGHT_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api/v1/flights/**
+            - id: reservations
+              uri: ${RESERVATION_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api/v1/passengers/**,/api/v1/reservations/**
+            # Documentación: solo el grupo "public" de cada servicio (la API interna no se publica)
+            - id: flights-docs
+              uri: ${FLIGHT_SERVICE_URL:http://localhost:8081}
+              predicates:
+                - Path=/api-docs/flights
+              filters:
+                - SetPath=/v3/api-docs/public
+            - id: reservations-docs
+              uri: ${RESERVATION_SERVICE_URL:http://localhost:8082}
+              predicates:
+                - Path=/api-docs/reservations
+              filters:
+                - SetPath=/v3/api-docs/public
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: Flight Service
+        url: /api-docs/flights
+      - name: Reservation Service
+        url: /api-docs/reservations
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

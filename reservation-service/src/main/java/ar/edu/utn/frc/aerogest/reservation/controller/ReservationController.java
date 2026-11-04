@@ -1,7 +1,7 @@
 package ar.edu.utn.frc.aerogest.reservation.controller;
 
 import ar.edu.utn.frc.aerogest.reservation.dto.CreateReservationRequest;
-import ar.edu.utn.frc.aerogest.reservation.dto.PageResponse;
+import ar.edu.utn.frc.aerogest.common.web.PageResponse;
 import ar.edu.utn.frc.aerogest.reservation.dto.ReservationResponse;
 import ar.edu.utn.frc.aerogest.reservation.service.ReservationService;
 import io.swagger.v3.oas.annotations.Operation;

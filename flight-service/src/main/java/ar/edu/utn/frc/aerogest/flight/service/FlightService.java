@@ -5,7 +5,7 @@ import ar.edu.utn.frc.aerogest.flight.dto.ChangeStatusRequest;
 import ar.edu.utn.frc.aerogest.flight.dto.CreateFlightRequest;
 import ar.edu.utn.frc.aerogest.flight.dto.FlightResponse;
 import ar.edu.utn.frc.aerogest.flight.dto.FlightSearchCriteria;
-import ar.edu.utn.frc.aerogest.flight.dto.PageResponse;
+import ar.edu.utn.frc.aerogest.common.web.PageResponse;
 import ar.edu.utn.frc.aerogest.flight.dto.UpdateFlightRequest;
 import ar.edu.utn.frc.aerogest.flight.exception.BusinessRuleException;
 import ar.edu.utn.frc.aerogest.flight.exception.ErrorCode;

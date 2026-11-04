@@ -1,15 +1,13 @@
 package ar.edu.utn.frc.aerogest.flight.exception;
 
-import java.util.LinkedHashMap;
+import ar.edu.utn.frc.aerogest.common.error.FieldIssue;
+import ar.edu.utn.frc.aerogest.common.error.ProblemResponses;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -20,11 +18,11 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
- * Manejo central de errores. Todas las respuestas siguen la estructura de RFC 7807
- * (type, title, status, detail) más un campo "code" estable en la raíz del JSON, que es
- * el que usan los clientes (incluido Reservation Service) para distinguir el motivo.
- * El cuerpo se arma como un mapa para garantizar esa estructura sin depender de la
- * configuración de serialización de Jackson.
+ * Manejo central de errores. Todas las respuestas siguen el formato común de AeroGest
+ * (ProblemResponses, en aerogest-common): RFC 7807 (type, title, status, detail) más un campo
+ * "code" estable en la raíz del JSON, que es el que usan los clientes (incluido Reservation
+ * Service) para distinguir el motivo. Qué code corresponde a cada error y con qué status se
+ * responde es propio de este servicio y queda acá.
  */
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -106,23 +104,6 @@ public class ApiExceptionHandler {
     }
 
     private static ResponseEntity<Object> respond(HttpStatus status, String code, String detail, List<FieldIssue> errors) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("type", "about:blank");
-        body.put("title", status.getReasonPhrase());
-        body.put("status", status.value());
-        body.put("detail", detail);
-        body.put("code", code);
-        String correlationId = MDC.get("correlationId");
-        if (correlationId != null) {
-            body.put("correlationId", correlationId);
-        }
-        if (errors != null) {
-            body.put("errors", errors);
-        }
-        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(body);
-    }
-
-    /** Un campo inválido de la solicitud. */
-    public record FieldIssue(String field, String message) {
+        return ProblemResponses.of(status, code, detail, errors);
     }
 }

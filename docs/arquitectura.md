@@ -36,29 +36,46 @@ claim `sub` del token. Un recurso ajeno responde **403** (RN-09).
 flowchart LR
     client["Cliente<br/>(Postman, Swagger)"]
     kc["Keycloak 26<br/>realm aerogest<br/>:8180"]
-    subgraph fs["Flight Service :8081"]
+    gw["API Gateway :8080<br/>ruteo + Security Filter<br/>(JWT y rol por ruta)"]
+    subgraph fs["Flight Service :8081 (interno)"]
         fapi["API pública<br/>/api/v1/flights"]
         fint["API interna<br/>/internal/v1/flights"]
     end
-    subgraph rs["Reservation Service :8082"]
+    subgraph rs["Reservation Service :8082 (interno)"]
         rapi["API pública<br/>/api/v1/passengers<br/>/api/v1/reservations"]
         job["Job de reconciliación<br/>(cada 1 min)"]
     end
     fdb[("flights_db<br/>PostgreSQL :5433")]
     rdb[("reservations_db<br/>PostgreSQL :5434")]
 
+    common[["aerogest-common (JAR Maven)<br/>roles Keycloak, correlation id,<br/>formato de error, paginación"]]
+
     client -- "1. login (password grant)" --> kc
-    client -- "JWT USER/ADMIN" --> fapi
-    client -- "JWT USER/ADMIN" --> rapi
-    rapi -- "2. client_credentials" --> kc
-    rapi -- "3. JWT SERVICE<br/>asignar / liberar plaza" --> fint
+    client -- "2. JWT USER/ADMIN" --> gw
+    gw -- "/api/v1/flights/**" --> fapi
+    gw -- "/api/v1/passengers/**<br/>/api/v1/reservations/**" --> rapi
+    gw -. "/internal/** denegado" .-x fint
+    rapi -- "3. client_credentials" --> kc
+    rapi -- "4. JWT SERVICE<br/>asignar / liberar plaza" --> fint
     job -- "liberar plaza" --> fint
     fs --> fdb
     rs --> rdb
+    gw -. "valida firma (JWKS)" .-> kc
     fs -. "valida firma (JWKS)" .-> kc
     rs -. "valida firma (JWKS)" .-> kc
+    common -. "dependencia Maven" .- gw
+    common -. "dependencia Maven" .- fs
+    common -. "dependencia Maven" .- rs
 ```
 
+- **API Gateway como único punto de entrada** (ADR 0005). Es el único que publica un puerto: el
+  cliente no conoce dónde están los servicios. Su Security Filter valida el JWT y el rol por ruta,
+  y no publica `/internal/**`. Los servicios vuelven a validar el token (segunda barrera) y deciden
+  sobre los datos por el `sub`. El tráfico Reservation → Flight va directo por la red interna, con
+  su propio token `SERVICE`.
+- **Componente común `aerogest-common`** (ADR 0004): JAR Maven instalado en el `.m2` que usan el
+  gateway y los dos servicios. Contiene lo que es convención del sistema (roles, correlation id,
+  formato de error, paginación); los códigos de error y las reglas de cada servicio quedan en el servicio.
 - **Dos microservicios con responsabilidades separadas**, cada uno dueño de su base. Reservation
   nunca lee las tablas de Flight: le pregunta por HTTP.
 - **Flight Service** es la fuente de verdad de las plazas. Ocupar una plaza es una sentencia atómica
@@ -234,10 +251,27 @@ Todas las tablas tienen además `created_at` y `updated_at`.
 
 ## 7. Contratos de las APIs
 
-La documentación interactiva está en `http://localhost:8081/swagger-ui.html` y
-`http://localhost:8082/swagger-ui.html` (botón *Authorize* con un token Bearer).
+Todas las rutas públicas se consumen por el gateway: `http://localhost:8080`. La documentación
+interactiva de los dos servicios está en `http://localhost:8080/swagger-ui.html` (selector arriba a
+la derecha, botón *Authorize* con un token Bearer). El gateway publica solo el grupo `public` de
+cada servicio; la API interna de Flight se documenta en su propio Swagger (grupo `internal`), que
+solo es accesible con `docker-compose.debug.yml`.
 
-### Flight Service (8081)
+### API Gateway (8080)
+
+| Ruta | Destino | Rol exigido por el gateway |
+|---|---|---|
+| `GET /api/v1/flights/**` | Flight Service | USER, ADMIN |
+| `POST/PUT/PATCH /api/v1/flights/**` | Flight Service | ADMIN |
+| `/api/v1/passengers/**`, `/api/v1/reservations/**` | Reservation Service | USER, ADMIN |
+| `/swagger-ui.html`, `/api-docs/flights`, `/api-docs/reservations`, `/actuator/health` | Gateway / grupo `public` de cada servicio | público |
+| `/internal/**` y cualquier otra ruta | — | denegada (401 sin token, 403 con token) |
+
+Errores propios del gateway: 401 `UNAUTHENTICATED`, 403 `ACCESS_DENIED`, 503 `UPSTREAM_UNAVAILABLE`
+(servicio caído), 504 `UPSTREAM_TIMEOUT` (no respondió en 15 s). Los errores de los servicios se
+reenvían sin cambios.
+
+### Flight Service (8081, interno)
 
 | Método y ruta | Rol | Respuestas |
 |---|---|---|
@@ -250,7 +284,7 @@ La documentación interactiva está en `http://localhost:8081/swagger-ui.html` y
 | `POST /internal/v1/flights/{id}/seat-allocations` `{reservationId}` | SERVICE | 201 nueva, 200 reintento ya procesado, 404, 409 `NO_AVAILABILITY`, `FLIGHT_NOT_RESERVABLE`, `ALLOCATION_CONFLICT` |
 | `DELETE /internal/v1/flights/{id}/seat-allocations/{reservationId}` | SERVICE | 204 (idempotente), 404 |
 
-### Reservation Service (8082)
+### Reservation Service (8082, interno)
 
 | Método y ruta | Rol | Respuestas |
 |---|---|---|
@@ -263,8 +297,9 @@ La documentación interactiva está en `http://localhost:8081/swagger-ui.html` y
 
 ### Formato de errores
 
-Los dos servicios responden con RFC 7807 más un `code` estable, que es lo que interpretan los
-clientes (incluido Reservation Service al leer los errores de Flight):
+El gateway y los dos servicios responden con RFC 7807 más un `code` estable, que es lo que
+interpretan los clientes (incluido Reservation Service al leer los errores de Flight). El formato
+lo arma `ProblemResponses`, del componente común:
 
 ```json
 {
@@ -286,8 +321,9 @@ Sin token: 401 `UNAUTHENTICATED`. Rol insuficiente o recurso ajeno: 403 `ACCESS_
   vencer. Ante un 401 de Flight se pide uno nuevo y se reintenta una sola vez.
 - **Clasificación de respuestas de Flight:** 404 y 409 con `code` conocido son rechazos definitivos.
   Caída, timeout, 5xx, 401/403 y cuerpos inválidos son resultados inciertos, y nunca se confirma.
-- **Correlation id:** cada solicitud recibe un `X-Correlation-Id` (o se genera uno). Va al log de
-  los dos servicios, se reenvía a Flight y aparece en las respuestas de error.
+- **Correlation id:** el gateway fija el `X-Correlation-Id` de cada solicitud (respeta el del
+  cliente o genera uno) y lo reenvía. Va al log del gateway y de los dos servicios, Reservation lo
+  reenvía a Flight y aparece en las respuestas de error.
 
 ## 8. Reglas de negocio
 

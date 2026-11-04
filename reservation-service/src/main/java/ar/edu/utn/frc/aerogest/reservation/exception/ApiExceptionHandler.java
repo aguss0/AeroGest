@@ -1,15 +1,13 @@
 package ar.edu.utn.frc.aerogest.reservation.exception;
 
-import java.util.LinkedHashMap;
+import ar.edu.utn.frc.aerogest.common.error.FieldIssue;
+import ar.edu.utn.frc.aerogest.common.error.ProblemResponses;
 import java.util.List;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
@@ -112,23 +110,6 @@ public class ApiExceptionHandler {
     }
 
     private static ResponseEntity<Object> respond(HttpStatus status, String code, String detail, List<FieldIssue> errors) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("type", "about:blank");
-        body.put("title", status.getReasonPhrase());
-        body.put("status", status.value());
-        body.put("detail", detail);
-        body.put("code", code);
-        String correlationId = MDC.get("correlationId");
-        if (correlationId != null) {
-            body.put("correlationId", correlationId);
-        }
-        if (errors != null) {
-            body.put("errors", errors);
-        }
-        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(body);
-    }
-
-    /** Un campo inválido de la solicitud. */
-    public record FieldIssue(String field, String message) {
+        return ProblemResponses.of(status, code, detail, errors);
     }
 }

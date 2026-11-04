@@ -200,7 +200,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{flightUrl}}/api/v1/flights"
+            "url": "{{gatewayUrl}}/api/v1/flights"
           },
           "event": [
             {
@@ -229,7 +229,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 100\n}"
@@ -275,7 +275,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeA}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 2\n}"
@@ -323,7 +323,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeA}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 2\n}"
@@ -356,7 +356,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{arrivalAt}}\",\n  \"arrivalAt\": \"{{departureAt}}\",\n  \"capacity\": 100\n}"
@@ -402,7 +402,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 0\n}"
@@ -448,7 +448,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeX}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"COR\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 100\n}"
@@ -490,7 +490,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightA}}"
           },
           "event": [
             {
@@ -515,7 +515,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights?origin=COR&destination=EZE&status=SCHEDULED&size=5"
+            "url": "{{gatewayUrl}}/api/v1/flights?origin=COR&destination=EZE&status=SCHEDULED&size=5"
           },
           "event": [
             {
@@ -540,7 +540,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/999999999"
+            "url": "{{gatewayUrl}}/api/v1/flights/999999999"
           },
           "event": [
             {
@@ -569,7 +569,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}/status",
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightA}}/status",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"COMPLETED\"\n}"
@@ -598,7 +598,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/internal/v1/flights/{{flightA}}/availability"
+            "url": "{{gatewayUrl}}/internal/v1/flights/{{flightA}}/availability"
           },
           "event": [
             {
@@ -614,7 +614,7 @@
           ]
         },
         {
-          "name": "SERVICE consulta la disponibilidad interna -> 200",
+          "name": "El gateway no publica la API interna, ni para SERVICE -> 403",
           "request": {
             "method": "GET",
             "header": [
@@ -623,7 +623,7 @@
                 "value": "Bearer {{tokenService}}"
               }
             ],
-            "url": "{{flightUrl}}/internal/v1/flights/{{flightA}}/availability"
+            "url": "{{gatewayUrl}}/internal/v1/flights/{{flightA}}/availability"
           },
           "event": [
             {
@@ -631,8 +631,8 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
-                  "pm.test(\"Admite reservas\", () => pm.expect(pm.response.json().acceptsReservations).to.eql(true));"
+                  "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"code = ACCESS_DENIED\", () => pm.expect(pm.response.json().code).to.eql(\"ACCESS_DENIED\"));"
                 ]
               }
             }
@@ -658,7 +658,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers",
+            "url": "{{gatewayUrl}}/api/v1/passengers",
             "body": {
               "mode": "raw",
               "raw": "{ \"firstName\": \"Ana\", \"lastName\": \"Pérez\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniAna}}\" }"
@@ -700,7 +700,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers",
+            "url": "{{gatewayUrl}}/api/v1/passengers",
             "body": {
               "mode": "raw",
               "raw": "{ \"firstName\": \"Otra\", \"lastName\": \"Persona\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniAna}}\" }"
@@ -733,7 +733,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers",
+            "url": "{{gatewayUrl}}/api/v1/passengers",
             "body": {
               "mode": "raw",
               "raw": "{ \"firstName\": \"Ana\", \"lastName\": \"Pérez\", \"documentType\": \"DNI\", \"documentNumber\": \"ABC123\" }"
@@ -766,7 +766,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers",
+            "url": "{{gatewayUrl}}/api/v1/passengers",
             "body": {
               "mode": "raw",
               "raw": "{ \"firstName\": \"\", \"lastName\": \"Pérez\" }"
@@ -795,7 +795,7 @@
                 "value": "Bearer {{tokenUser2}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers/{{passengerAna}}"
+            "url": "{{gatewayUrl}}/api/v1/passengers/{{passengerAna}}"
           },
           "event": [
             {
@@ -824,7 +824,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers",
+            "url": "{{gatewayUrl}}/api/v1/passengers",
             "body": {
               "mode": "raw",
               "raw": "{ \"firstName\": \"Bruno\", \"lastName\": \"Gómez\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniBruno}}\" }"
@@ -862,7 +862,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers"
+            "url": "{{gatewayUrl}}/api/v1/passengers"
           },
           "event": [
             {
@@ -888,7 +888,7 @@
           "request": {
             "method": "GET",
             "header": [],
-            "url": "{{reservationUrl}}/api/v1/reservations"
+            "url": "{{gatewayUrl}}/api/v1/reservations"
           },
           "event": [
             {
@@ -913,7 +913,7 @@
                 "value": "Bearer {{tokenService}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations"
+            "url": "{{gatewayUrl}}/api/v1/reservations"
           },
           "event": [
             {
@@ -942,7 +942,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
@@ -973,7 +973,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightA}}"
           },
           "event": [
             {
@@ -1002,7 +1002,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
@@ -1035,7 +1035,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
@@ -1064,7 +1064,7 @@
                 "value": "Bearer {{tokenUser2}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}"
+            "url": "{{gatewayUrl}}/api/v1/reservations/{{reservationAna}}"
           },
           "event": [
             {
@@ -1093,7 +1093,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerBruno}}, \"flightId\": 999999999 }"
@@ -1126,7 +1126,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerAna}} }"
@@ -1155,7 +1155,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}"
+            "url": "{{gatewayUrl}}/api/v1/reservations/{{reservationAna}}"
           },
           "event": [
             {
@@ -1180,7 +1180,7 @@
                 "value": "Bearer {{tokenAdmin}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations?size=5"
+            "url": "{{gatewayUrl}}/api/v1/reservations?size=5"
           },
           "event": [
             {
@@ -1211,7 +1211,7 @@
                 "value": "Bearer {{tokenUser2}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
+            "url": "{{gatewayUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
           },
           "event": [
             {
@@ -1236,7 +1236,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
+            "url": "{{gatewayUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
           },
           "event": [
             {
@@ -1261,7 +1261,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightA}}"
           },
           "event": [
             {
@@ -1286,7 +1286,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
+            "url": "{{gatewayUrl}}/api/v1/reservations/{{reservationAna}}/cancel"
           },
           "event": [
             {
@@ -1311,7 +1311,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/{{flightA}}"
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightA}}"
           },
           "event": [
             {
@@ -1340,7 +1340,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightA}} }"
@@ -1377,7 +1377,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeB}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 5\n}"
@@ -1423,7 +1423,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/{{flightB}}/status",
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightB}}/status",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"CANCELLED\"\n}"
@@ -1455,7 +1455,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerBruno}}, \"flightId\": {{flightB}} }"
@@ -1494,7 +1494,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights",
+            "url": "{{gatewayUrl}}/api/v1/flights",
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"{{flightCodeC}}\",\n  \"origin\": \"COR\",\n  \"destination\": \"EZE\",\n  \"departureAt\": \"{{departureAt}}\",\n  \"arrivalAt\": \"{{arrivalAt}}\",\n  \"capacity\": 1\n}"
@@ -1540,7 +1540,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerAna}}, \"flightId\": {{flightC}} }"
@@ -1572,7 +1572,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerBruno}}, \"flightId\": {{flightC}} }"
@@ -1601,7 +1601,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{flightUrl}}/api/v1/flights/{{flightC}}"
+            "url": "{{gatewayUrl}}/api/v1/flights/{{flightC}}"
           },
           "event": [
             {
@@ -1626,7 +1626,7 @@
                 "value": "Bearer {{tokenUser2}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations?size=20"
+            "url": "{{gatewayUrl}}/api/v1/reservations?size=20"
           },
           "event": [
             {
@@ -1708,7 +1708,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers",
+            "url": "{{gatewayUrl}}/api/v1/passengers",
             "body": {
               "mode": "raw",
               "raw": "{ \"firstName\": \"Prueba\", \"lastName\": \"Falla\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniFailure}}\" }"
@@ -1750,7 +1750,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerFailure}}, \"flightId\": 1 }"
@@ -1780,7 +1780,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations?size=20"
+            "url": "{{gatewayUrl}}/api/v1/reservations?size=20"
           },
           "event": [
             {
@@ -1862,7 +1862,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/passengers",
+            "url": "{{gatewayUrl}}/api/v1/passengers",
             "body": {
               "mode": "raw",
               "raw": "{ \"firstName\": \"Prueba\", \"lastName\": \"Falla\", \"documentType\": \"DNI\", \"documentNumber\": \"{{dniFailure}}\" }"
@@ -1904,7 +1904,7 @@
                 "value": "application/json"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations",
+            "url": "{{gatewayUrl}}/api/v1/reservations",
             "body": {
               "mode": "raw",
               "raw": "{ \"passengerId\": {{passengerFailure}}, \"flightId\": 1 }"
@@ -1933,7 +1933,7 @@
                 "value": "Bearer {{tokenUser1}}"
               }
             ],
-            "url": "{{reservationUrl}}/api/v1/reservations?size=20"
+            "url": "{{gatewayUrl}}/api/v1/reservations?size=20"
           },
           "event": [
             {

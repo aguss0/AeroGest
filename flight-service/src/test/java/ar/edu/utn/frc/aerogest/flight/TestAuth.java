@@ -1,6 +1,6 @@
 package ar.edu.utn.frc.aerogest.flight;
 
-import ar.edu.utn.frc.aerogest.flight.config.KeycloakRealmRoleConverter;
+import ar.edu.utn.frc.aerogest.common.security.KeycloakRealmRoleConverter;
 import java.util.List;
 import java.util.Map;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;

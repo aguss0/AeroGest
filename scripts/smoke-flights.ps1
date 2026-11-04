@@ -1,4 +1,7 @@
 ﻿# Prueba de humo de Flight Service contra los servicios reales (Keycloak + Flight Service en marcha).
+# Habla DIRECTO con Flight Service (no con el gateway) porque prueba también su API interna, que
+# el gateway no publica. En Docker hace falta el override de diagnóstico, que publica 8081 en 127.0.0.1:
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
 # Uso (desde la raíz del repo, con el .env cargado):
 #   . .\scripts\load-env.ps1
 #   .\scripts\smoke-flights.ps1

@@ -1,12 +1,12 @@
-﻿# Prueba de humo de punta a punta: Keycloak + Flight Service + Reservation Service reales.
+﻿# Prueba de humo de punta a punta: Keycloak + API Gateway + Flight Service + Reservation Service reales.
+# Todas las llamadas pasan por el gateway, como las haría un cliente (ADR 0005).
 # Cubre el proceso de reserva, cancelación, seguridad y la última plaza bajo concurrencia.
 # Uso (desde la raíz del repo, con el .env cargado):
 #   . .\scripts\load-env.ps1
 #   .\scripts\smoke-reservations.ps1
 #   .\scripts\smoke-reservations.ps1 -IncludeFailures   # además apaga/congela Flight (requiere el sistema en Docker)
 param(
-    [string]$FlightUrl = "http://localhost:8081",
-    [string]$ReservationUrl = "http://localhost:8082",
+    [string]$GatewayUrl = "http://localhost:8080",
     [string]$KeycloakUrl = "http://localhost:8180",
     [int]$Concurrent = 10,
     [switch]$IncludeFailures,
@@ -63,9 +63,10 @@ function Call([string]$Method, [string]$Url, [string]$Token, $Body = $null) {
         return [pscustomobject]@{ Status = -1; Body = $null }
     }
 }
-# Flt y Rsv llaman a cada servicio ("r" ya es un alias de PowerShell, por eso no se usan nombres de una letra)
-function Flt([string]$Method, [string]$Path, [string]$Token, $Body = $null) { Call $Method "$FlightUrl$Path" $Token $Body }
-function Rsv([string]$Method, [string]$Path, [string]$Token, $Body = $null) { Call $Method "$ReservationUrl$Path" $Token $Body }
+# Flt y Rsv separan las llamadas por servicio para leer mejor el script; las dos van al gateway.
+# ("r" ya es un alias de PowerShell, por eso no se usan nombres de una letra)
+function Flt([string]$Method, [string]$Path, [string]$Token, $Body = $null) { Call $Method "$GatewayUrl$Path" $Token $Body }
+function Rsv([string]$Method, [string]$Path, [string]$Token, $Body = $null) { Call $Method "$GatewayUrl$Path" $Token $Body }
 
 $script:pass = 0
 $script:fail = 0
@@ -123,6 +124,8 @@ function StatusesOnFlight([long]$FlightId) {
 Write-Host "`n== Seguridad (RN-09) ==" -ForegroundColor Cyan
 Check "Sin token -> 401" (Rsv GET "/api/v1/reservations" $null) 401 "UNAUTHENTICATED"
 Check "El rol SERVICE no usa la API pública -> 403" (Rsv GET "/api/v1/reservations" $svc) 403 "ACCESS_DENIED"
+Check "El gateway no publica la API interna, ni para el rol SERVICE -> 403" (Flt GET "/internal/v1/flights/1/availability" $svc) 403 "ACCESS_DENIED"
+Check "El gateway enruta a Flight con un token USER -> 200" (Flt GET "/api/v1/flights?size=1" $user1) 200
 
 Write-Host "`n== Pasajeros (RN-14) ==" -ForegroundColor Cyan
 $dniAna = Next-Dni
@@ -170,7 +173,7 @@ Write-Host "`n== Última plaza: $Concurrent reservas simultáneas (RN-05) ==" -F
 $flightC = New-Flight "C" 1
 $passengers = 1..$Concurrent | ForEach-Object { New-Passenger $user1 "Concurrente$_" }
 # Se arman todas las solicitudes y se disparan sin esperar respuesta; recién después se espera a todas
-$requests = $passengers | ForEach-Object { New-Request POST "$ReservationUrl/api/v1/reservations" $user1 @{ passengerId = $_; flightId = $flightC } }
+$requests = $passengers | ForEach-Object { New-Request POST "$GatewayUrl/api/v1/reservations" $user1 @{ passengerId = $_; flightId = $flightC } }
 $tasks = @($requests | ForEach-Object { $script:http.SendAsync($_) })
 [System.Threading.Tasks.Task]::WaitAll([System.Threading.Tasks.Task[]]$tasks)
 $results = @($tasks | ForEach-Object { Read-Response $_.Result })
@@ -184,9 +187,9 @@ CheckValue "En la base: $($Concurrent - 1) REJECTED" @($statuses | Where-Object 
 if ($IncludeFailures) {
     function Wait-FlightUp {
         for ($i = 0; $i -lt 60; $i++) {
-            # Mientras arranca rechaza conexiones: se consulta en silencio hasta que responda
+            # Mientras arranca, el gateway responde 503 UPSTREAM_UNAVAILABLE: se consulta hasta que Flight responda
             try {
-                if ((Invoke-WebRequest -UseBasicParsing -Uri "$FlightUrl/actuator/health" -TimeoutSec 2).StatusCode -eq 200) { return }
+                if ((Invoke-WebRequest -UseBasicParsing -Uri "$GatewayUrl/api/v1/flights?size=1" -Headers @{ Authorization = "Bearer $admin" } -TimeoutSec 2).StatusCode -eq 200) { return }
             } catch { }
             Start-Sleep -Seconds 2
         }

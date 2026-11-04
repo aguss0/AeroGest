@@ -1,2 +1,15 @@
+# El contexto de construcción de las imágenes es la raíz del repo: solo hacen falta common/ y
+# el código de cada servicio.
 .git
 .env
+**/target
+**/.mvn
+**/mvnw
+**/mvnw.cmd
+**/*.log
+.idea
+.vscode
+docs
+postman
+scripts
+keycloak

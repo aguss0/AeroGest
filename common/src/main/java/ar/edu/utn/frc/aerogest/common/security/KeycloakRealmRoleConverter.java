@@ -1,4 +1,4 @@
-package ar.edu.utn.frc.aerogest.flight.config;
+package ar.edu.utn.frc.aerogest.common.security;
 
 import java.util.Collection;
 import java.util.List;
@@ -11,6 +11,9 @@ import org.springframework.security.oauth2.jwt.Jwt;
 /**
  * Convierte los roles del realm de Keycloak (claim "realm_access.roles") en autoridades de
  * Spring Security con prefijo ROLE_ (ADMIN -> ROLE_ADMIN), que es lo que entiende hasRole("ADMIN").
+ *
+ * No depende de servlet ni de WebFlux: la usan los dos microservicios y también el gateway
+ * (envuelta en un ReactiveJwtAuthenticationConverterAdapter).
  */
 public class KeycloakRealmRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
 

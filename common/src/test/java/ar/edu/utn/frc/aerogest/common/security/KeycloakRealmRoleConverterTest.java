@@ -1,4 +1,4 @@
-package ar.edu.utn.frc.aerogest.flight.config;
+package ar.edu.utn.frc.aerogest.common.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

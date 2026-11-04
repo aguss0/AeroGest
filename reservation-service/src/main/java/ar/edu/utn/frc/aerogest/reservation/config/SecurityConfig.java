@@ -1,9 +1,10 @@
 package ar.edu.utn.frc.aerogest.reservation.config;
 
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
+import ar.edu.utn.frc.aerogest.common.security.KeycloakRealmRoleConverter;
+import ar.edu.utn.frc.aerogest.common.web.ServletProblemWriter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -41,12 +42,12 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
                         .authenticationEntryPoint((request, response, ex) -> {
                             response.setHeader("WWW-Authenticate", "Bearer");
-                            writeProblem(response, HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized",
-                                    "UNAUTHENTICATED", "Falta un token válido o el token expiró");
+                            ServletProblemWriter.write(response, HttpStatus.UNAUTHORIZED, "UNAUTHENTICATED",
+                                    "Falta un token válido o el token expiró");
                         })
                         .accessDeniedHandler((request, response, ex) ->
-                                writeProblem(response, HttpServletResponse.SC_FORBIDDEN, "Forbidden",
-                                        "ACCESS_DENIED", "No tenés permisos para realizar esta operación")));
+                                ServletProblemWriter.write(response, HttpStatus.FORBIDDEN, "ACCESS_DENIED",
+                                        "No tenés permisos para realizar esta operación")));
         return http.build();
     }
 
@@ -55,17 +56,5 @@ public class SecurityConfig {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
         converter.setJwtGrantedAuthoritiesConverter(new KeycloakRealmRoleConverter());
         return converter;
-    }
-
-    /** Respuestas 401/403 con el mismo formato (RFC 7807 + code) que el resto de los errores. */
-    private static void writeProblem(HttpServletResponse response, int status, String title,
-                                     String code, String detail) throws IOException {
-        response.setStatus(status);
-        response.setContentType("application/problem+json");
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write("{\"type\":\"about:blank\",\"title\":\"" + title
-                + "\",\"status\":" + status
-                + ",\"detail\":\"" + detail
-                + "\",\"code\":\"" + code + "\"}");
     }
 }

@@ -1,5 +1,6 @@
 package ar.edu.utn.frc.aerogest.reservation.client;
 
+import ar.edu.utn.frc.aerogest.common.web.CorrelationId;
 import ar.edu.utn.frc.aerogest.reservation.config.FlightServiceProperties;
 import ar.edu.utn.frc.aerogest.reservation.exception.BusinessRuleException;
 import ar.edu.utn.frc.aerogest.reservation.exception.ErrorCode;
@@ -25,8 +26,6 @@ import tools.jackson.databind.json.JsonMapper;
 public class HttpFlightGateway implements FlightGateway {
 
     private static final Logger log = LoggerFactory.getLogger(HttpFlightGateway.class);
-    static final String CORRELATION_HEADER = "X-Correlation-Id";
-    static final String CORRELATION_MDC_KEY = "correlationId";
 
     private final HttpClient httpClient;
     private final ServiceTokenProvider tokenProvider;
@@ -83,9 +82,9 @@ public class HttpFlightGateway implements FlightGateway {
                 .timeout(readTimeout)
                 .header("Authorization", "Bearer " + token)
                 .header("Accept", "application/json");
-        String correlationId = MDC.get(CORRELATION_MDC_KEY);
+        String correlationId = MDC.get(CorrelationId.MDC_KEY);
         if (correlationId != null && !correlationId.isBlank()) {
-            builder.header(CORRELATION_HEADER, correlationId);
+            builder.header(CorrelationId.HEADER, correlationId);
         }
         if (body != null) {
             builder.header("Content-Type", "application/json")

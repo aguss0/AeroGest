@@ -1,7 +1,11 @@
-# Infraestructura (siempre):  docker compose up -d
-#   -> flights-db, reservations-db y keycloak. Los servicios se corren con Maven.
-# Sistema completo:           docker compose --profile apps up -d --build
-#   -> además construye y levanta flight-service y reservation-service.
+# Sistema completo:    docker compose up -d --build
+#   -> bases, Keycloak, flight-service, reservation-service y api-gateway.
+#      El único punto de entrada a la API es el gateway (http://localhost:8080); los
+#      microservicios no publican puertos (ADR 0005).
+# Solo infraestructura: docker compose up -d flights-db reservations-db keycloak
+#   -> para correr los servicios con Maven desde el IDE.
+# Diagnóstico:          docker compose -f docker-compose.yml -f docker-compose.debug.yml up -d
+#   -> además publica 8081 y 8082 solo en 127.0.0.1 (prueba directa de la API interna).
 services:
   flights-db:
     image: postgres:16
@@ -60,15 +64,16 @@ services:
       - ./keycloak/aerogest-realm.json:/opt/keycloak/data/import/aerogest-realm.json:ro
 
   flight-service:
-    profiles: ["apps"]
-    build: ./flight-service
+    build:
+      context: .
+      dockerfile: flight-service/Dockerfile
     container_name: aerogest-flight-service
     env_file: .env
     environment:
       FLIGHTS_DB_URL: jdbc:postgresql://flights-db:5432/${FLIGHTS_DB_NAME}
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/aerogest/protocol/openid-connect/certs
-    ports:
-      - "8081:8081"
+    expose:
+      - "8081"
     depends_on:
       flights-db:
         condition: service_healthy
@@ -76,8 +81,9 @@ services:
         condition: service_started
 
   reservation-service:
-    profiles: ["apps"]
-    build: ./reservation-service
+    build:
+      context: .
+      dockerfile: reservation-service/Dockerfile
     container_name: aerogest-reservation-service
     env_file: .env
     environment:
@@ -85,11 +91,31 @@ services:
       KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/aerogest/protocol/openid-connect/certs
       KEYCLOAK_TOKEN_URI: http://keycloak:8080/realms/aerogest/protocol/openid-connect/token
       FLIGHT_SERVICE_BASE_URL: http://flight-service:8081
-    ports:
-      - "8082:8082"
+    expose:
+      - "8082"
     depends_on:
       reservations-db:
         condition: service_healthy
+      keycloak:
+        condition: service_started
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    container_name: aerogest-api-gateway
+    env_file: .env
+    environment:
+      KEYCLOAK_JWK_SET_URI: http://keycloak:8080/realms/aerogest/protocol/openid-connect/certs
+      FLIGHT_SERVICE_URL: http://flight-service:8081
+      RESERVATION_SERVICE_URL: http://reservation-service:8082
+    ports:
+      - "${GATEWAY_PORT}:8080"
+    depends_on:
+      flight-service:
+        condition: service_started
+      reservation-service:
+        condition: service_started
       keycloak:
         condition: service_started
 

@@ -118,6 +118,12 @@
 			<artifactId>testcontainers-postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Componente común de AeroGest (ADR 0004), instalado en el repositorio Maven local -->
+		<dependency>
+			<groupId>ar.edu.utn.frc.aerogest</groupId>
+			<artifactId>aerogest-common</artifactId>
+			<version>1.0.0</version>
+		</dependency>
 		<dependency>
 			<groupId>org.springdoc</groupId>
 			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>

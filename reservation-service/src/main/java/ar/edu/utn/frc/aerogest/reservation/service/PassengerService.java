@@ -2,7 +2,7 @@ package ar.edu.utn.frc.aerogest.reservation.service;
 
 import ar.edu.utn.frc.aerogest.reservation.domain.Passenger;
 import ar.edu.utn.frc.aerogest.reservation.dto.CreatePassengerRequest;
-import ar.edu.utn.frc.aerogest.reservation.dto.PageResponse;
+import ar.edu.utn.frc.aerogest.common.web.PageResponse;
 import ar.edu.utn.frc.aerogest.reservation.dto.PassengerResponse;
 import ar.edu.utn.frc.aerogest.reservation.dto.UpdatePassengerRequest;
 import ar.edu.utn.frc.aerogest.reservation.exception.BusinessRuleException;
