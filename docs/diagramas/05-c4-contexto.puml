@@ -1,0 +1,20 @@
+@startuml C4_Contexto_AeroGest
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title AeroGest - Diagrama de Contexto (C4 nivel 1)
+
+Person(admin, "Administrador", "Personal de la aerolínea. Programa vuelos y controla su estado; ve y cancela cualquier reserva.")
+Person(user, "Usuario", "Cliente o agente de ventas. Consulta vuelos, registra pasajeros, reserva y cancela sus reservas.")
+
+System(aerogest, "AeroGest", "Backend de gestión de vuelos y reservas. Expone APIs REST y garantiza que no se confirmen reservas inválidas.")
+
+System_Ext(keycloak, "Keycloak", "Identity Provider (OIDC). Autentica usuarios y servicios y emite tokens JWT con roles ADMIN, USER y SERVICE.")
+System_Ext(opensky, "OpenSky Network", "API pública de tráfico aéreo. Informa si una aeronave ya despegó.")
+
+Rel(admin, keycloak, "Inicia sesión", "OIDC / HTTPS")
+Rel(user, keycloak, "Inicia sesión", "OIDC / HTTPS")
+Rel(admin, aerogest, "Gestiona vuelos, consulta y cancela reservas", "REST/JSON + JWT")
+Rel(user, aerogest, "Consulta vuelos, gestiona pasajeros y reservas", "REST/JSON + JWT")
+Rel(aerogest, keycloak, "Valida tokens (JWKS) y obtiene token de servicio", "OIDC / HTTPS")
+Rel(aerogest, opensky, "Consulta el estado real de los vuelos", "REST/JSON / HTTPS")
+@enduml

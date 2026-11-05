@@ -56,7 +56,7 @@ flowchart LR
 
     common[["aerogest-common (JAR Maven)<br/>roles Keycloak, correlation id,<br/>formato de error, paginación"]]
 
-    client -- "1. login (password grant)" --> kc
+    client -- "1. login OIDC<br/>(Swagger: authorization code + PKCE;<br/>Postman: password grant)" --> kc
     client -- "2. JWT USER/ADMIN" --> gw
     gw -- "/api/v1/flights/**" --> fapi
     gw -- "/api/v1/passengers/**<br/>/api/v1/reservations/**" --> rapi

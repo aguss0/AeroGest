@@ -1,26 +1,26 @@
-﻿# reservation-service - .\mvnw.cmd test - 2026-11-01 18:45
+﻿# reservation-service - .\mvnw.cmd test - 2026-11-04 10:03
 
 [INFO] Building reservation-service 0.0.1-SNAPSHOT
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.client.HttpFlightGatewayTest
-[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 19.34 s -- in ar.edu.utn.frc.aerogest.reservation.client.HttpFlightGatewayTest
+[INFO] Tests run: 25, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 4.952 s -- in ar.edu.utn.frc.aerogest.reservation.client.HttpFlightGatewayTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.client.ServiceTokenProviderTest
-[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 7.070 s -- in ar.edu.utn.frc.aerogest.reservation.client.ServiceTokenProviderTest
+[INFO] Tests run: 8, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.482 s -- in ar.edu.utn.frc.aerogest.reservation.client.ServiceTokenProviderTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.domain.PassengerTest
-[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.406 s -- in ar.edu.utn.frc.aerogest.reservation.domain.PassengerTest
+[INFO] Tests run: 7, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.076 s -- in ar.edu.utn.frc.aerogest.reservation.domain.PassengerTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.domain.ReservationStatusTest
-[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.425 s -- in ar.edu.utn.frc.aerogest.reservation.domain.ReservationStatusTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.065 s -- in ar.edu.utn.frc.aerogest.reservation.domain.ReservationStatusTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.domain.ReservationTest
-[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.343 s -- in ar.edu.utn.frc.aerogest.reservation.domain.ReservationTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.096 s -- in ar.edu.utn.frc.aerogest.reservation.domain.ReservationTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.ReservationApiIntegrationTest
 Mockito is currently self-attaching to enable the inline-mock-maker. This will no longer work in future releases of the JDK. Please add Mockito as an agent to your build as described in Mockito's documentation: https://javadoc.io/doc/org.mockito/mockito-core/latest/org.mockito/org/mockito/Mockito.html#0.3
-[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 120.7 s -- in ar.edu.utn.frc.aerogest.reservation.ReservationApiIntegrationTest
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 63.46 s -- in ar.edu.utn.frc.aerogest.reservation.ReservationApiIntegrationTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.ReservationConcurrencyIntegrationTest
-[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.631 s -- in ar.edu.utn.frc.aerogest.reservation.ReservationConcurrencyIntegrationTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.694 s -- in ar.edu.utn.frc.aerogest.reservation.ReservationConcurrencyIntegrationTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.ReservationServiceApplicationTests
-[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 34.23 s -- in ar.edu.utn.frc.aerogest.reservation.ReservationServiceApplicationTests
+[INFO] Tests run: 1, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 20.29 s -- in ar.edu.utn.frc.aerogest.reservation.ReservationServiceApplicationTests
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.service.PassengerServiceTest
-[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 2.150 s -- in ar.edu.utn.frc.aerogest.reservation.service.PassengerServiceTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.322 s -- in ar.edu.utn.frc.aerogest.reservation.service.PassengerServiceTest
 [INFO] Running ar.edu.utn.frc.aerogest.reservation.service.ReservationServiceTest
-[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 1.864 s -- in ar.edu.utn.frc.aerogest.reservation.service.ReservationServiceTest
+[INFO] Tests run: 21, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.895 s -- in ar.edu.utn.frc.aerogest.reservation.service.ReservationServiceTest
 [INFO] Tests run: 113, Failures: 0, Errors: 0, Skipped: 0
 [INFO] BUILD SUCCESS

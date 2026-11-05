@@ -1,0 +1,40 @@
+@startuml C4_Contenedores_AeroGest
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title AeroGest - Diagrama de Contenedores (C4 nivel 2)
+
+Person(admin, "Administrador", "Rol ADMIN")
+Person(user, "Usuario", "Rol USER")
+System_Ext(keycloak, "Keycloak", "Identity Provider (Keycloak 26.8.1, realm aerogest, :8180): identidad, roles y tokens JWT")
+System_Ext(opensky, "OpenSky Network", "API REST pública: estado real de las aeronaves")
+
+System_Boundary(aerogest, "AeroGest") {
+    Container(gateway, "API Gateway", "Java 21, Spring Boot 4.0.9, Spring Cloud Gateway (WebFlux), :8080", "Único punto de entrada. Enruta /api/v1/*, Security Filter (JWT + rol por ruta), correlation id, Swagger único. No publica /internal/*")
+    Container(flight, "Flight Service", "Java 21, Spring Boot 4.1.2, :8081 (solo red interna)", "Vuelos, estados y plazas. Fuente de verdad de la capacidad. API pública /api/v1/flights y API interna /internal/v1/flights. Job de verificación de salida")
+    Container(reservation, "Reservation Service", "Java 21, Spring Boot 4.1.2, :8082 (solo red interna)", "Pasajeros y reservas. Orquesta la reserva contra Flight. Job de reconciliación cada 1 min")
+    Container(common, "aerogest-common", "JAR Maven 1.0.0 (biblioteca, instalada en .m2)", "Conversor de roles de Keycloak, correlation id, formato de error RFC 7807, paginación")
+    ContainerDb(flightsDb, "flights_db", "PostgreSQL 16, :5433", "flights, seat_allocations")
+    ContainerDb(reservationsDb, "reservations_db", "PostgreSQL 16, :5434", "passengers, reservations")
+}
+
+Rel(admin, keycloak, "Login", "OIDC")
+Rel(user, keycloak, "Login", "OIDC")
+Rel(admin, gateway, "Gestiona vuelos, consulta y cancela reservas", "REST/JSON + JWT ADMIN")
+Rel(user, gateway, "Consulta vuelos, registra pasajeros, reserva y cancela", "REST/JSON + JWT USER")
+
+Rel(gateway, flight, "Enruta /api/v1/flights/*", "HTTP + JWT (token relay), X-Correlation-Id")
+Rel(gateway, reservation, "Enruta /api/v1/passengers/*, /api/v1/reservations/*", "HTTP + JWT (token relay), X-Correlation-Id")
+Rel(gateway, keycloak, "Valida firma de tokens", "JWKS")
+
+Rel(reservation, flight, "Asigna / libera plaza (idempotente por reservationId)", "REST/JSON + JWT SERVICE, directo por la red interna, timeouts 2s/3s")
+Rel(reservation, keycloak, "Token client_credentials + JWKS", "OIDC")
+Rel(flight, keycloak, "Valida firma de tokens", "JWKS")
+Rel(flight, opensky, "Consulta si la aeronave despegó", "REST/JSON / HTTPS, timeout")
+
+Rel(flight, flightsDb, "Lee y escribe", "JDBC / JPA + Flyway")
+Rel(reservation, reservationsDb, "Lee y escribe", "JDBC / JPA + Flyway")
+
+Rel(gateway, common, "Depende de", "Maven")
+Rel(flight, common, "Depende de", "Maven")
+Rel(reservation, common, "Depende de", "Maven")
+@enduml

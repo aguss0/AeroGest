@@ -5,7 +5,10 @@ preliminar del 2026-10-05 y con lo implementado hasta el 2026-11-04. Los nombres
 bases, roles, reglas RN-xx, funcionalidades F-xx) son los mismos que en `docs/arquitectura.md`
 y `docs/trazabilidad.md`.
 
-> Completar los campos marcados con **[COMPLETAR]**.
+> **Cómo usar este archivo:** cada `## Sección` corresponde a un campo del formulario, en el mismo
+> orden. Copiar el contenido debajo de cada título en su campo. Antes de enviar: completar los
+> campos marcados con **[COMPLETAR]** y adjuntar las imágenes de los diagramas de las secciones 04,
+> 05, 06 y 08 (fuentes en `docs/diagramas/`). Esta tabla de cambios no va en el formulario.
 
 **Cambios respecto de la versión 1** (`docs/propuesta-tpi-2026.md`)
 
@@ -43,33 +46,29 @@ Leído. Sin respuesta requerida.
 ## Sección 02 — Descripción breve del proyecto
 
 AeroGest es el backend de una aerolínea para administrar vuelos comerciales y las reservas de sus
-pasajeros. Está construido como dos microservicios independientes: **Flight Service**, que gestiona
-los vuelos, sus estados y la cantidad de plazas, y **Reservation Service**, que gestiona pasajeros y
-reservas. Cada uno tiene su propia base PostgreSQL. Un **API Gateway** es el único punto de entrada:
-enruta las solicitudes y aplica un primer filtro de seguridad. La identidad de usuarios y servicios
-la resuelve **Keycloak** con tokens JWT y tres roles (ADMIN, USER, SERVICE). Un componente común
-(**`aerogest-common`**, JAR Maven) concentra las convenciones del sistema: roles, trazabilidad y
-formato de errores.
+pasajeros. Son dos microservicios con base PostgreSQL propia: **Flight Service** (vuelos, estados y
+plazas) y **Reservation Service** (pasajeros y reservas). Un **API Gateway** es el único punto de
+entrada y aplica un primer filtro de seguridad; **Keycloak** autentica usuarios y servicios con JWT
+y tres roles (ADMIN, USER, SERVICE). Un JAR común (**`aerogest-common`**) reúne las convenciones del
+sistema: roles, trazabilidad y formato de errores.
 
-Está destinado a dos tipos de usuarios: el **administrador** de la aerolínea, que da de alta los
-vuelos y controla su estado, y el **usuario** (cliente o agente de ventas), que consulta vuelos,
-registra pasajeros y reserva.
+Está destinado al **administrador** de la aerolínea, que programa los vuelos y controla su estado, y
+al **usuario** (cliente o agente de ventas), que consulta vuelos, registra pasajeros y reserva.
 
-El principal aporte es garantizar que **nunca se confirme una reserva inválida**: sin plazas, en un
-vuelo cancelado o ya partido, duplicada para el mismo pasajero, o sin haber podido validar el vuelo.
-Esto se sostiene aunque lleguen muchas solicitudes simultáneas por la última plaza y aunque el
-servicio de vuelos esté caído o tarde en responder, sin transacciones distribuidas: la plaza se
-ocupa con una operación atómica e idempotente en Flight Service y la reserva solo pasa a CONFIRMED
-cuando esa operación tuvo éxito; ante un resultado incierto se compensa y un proceso periódico
-resuelve las reservas pendientes. Para saber si un vuelo **ya partió de verdad**, y
-no solo según su horario programado, Flight Service consulta la API pública de **OpenSky Network**.
+El principal aporte es que **nunca se confirme una reserva inválida**: sin plazas, en un vuelo
+cancelado o ya despegado, duplicada o sin haber podido validar el vuelo. Se sostiene aunque lleguen
+muchas solicitudes simultáneas por la última plaza y aunque Flight Service esté caído o lento, sin
+transacciones distribuidas: la plaza se ocupa con una operación atómica e idempotente y la reserva
+solo se confirma si esa operación tuvo éxito; ante la duda se compensa y un proceso periódico
+resuelve lo pendiente. Para saber si un vuelo **ya despegó de verdad**, y no solo según su horario,
+Flight Service consulta la API pública de **OpenSky Network**.
 
-El resultado concreto es un backend ejecutable con un solo comando (Docker Compose), con APIs REST
-documentadas en un Swagger único detrás del gateway, una colección Postman con escenarios positivos
-y negativos, 248 pruebas automáticas (unitarias, de integración contra PostgreSQL real y de
-concurrencia) y documentación de arquitectura, decisiones (ADR) y trazabilidad.
+El resultado concreto es un backend que se levanta con un solo comando (Docker Compose), con APIs
+REST documentadas en un Swagger único, una colección Postman con escenarios positivos y negativos,
+248 pruebas automáticas (unitarias, de integración contra PostgreSQL real y de concurrencia) y
+documentación de arquitectura, decisiones y trazabilidad.
 
-*(≈ 300 palabras)*
+*(≈ 250 palabras)*
 
 ---
 
@@ -326,11 +325,11 @@ title AeroGest - Diagrama de Contenedores (C4 nivel 2)
 
 Person(admin, "Administrador", "Rol ADMIN")
 Person(user, "Usuario", "Rol USER")
-System_Ext(keycloak, "Keycloak", "Keycloak 26.8.1, realm aerogest, :8180", "Identity Provider: identidad, roles y tokens JWT")
-System_Ext(opensky, "OpenSky Network", "API REST pública", "Estado real de las aeronaves")
+System_Ext(keycloak, "Keycloak", "Identity Provider (Keycloak 26.8.1, realm aerogest, :8180): identidad, roles y tokens JWT")
+System_Ext(opensky, "OpenSky Network", "API REST pública: estado real de las aeronaves")
 
 System_Boundary(aerogest, "AeroGest") {
-    Container(gateway, "API Gateway", "Java 21, Spring Boot 4.0.9, Spring Cloud Gateway (WebFlux), :8080", "Único punto de entrada. Enruta /api/v1/**, Security Filter (JWT + rol por ruta), correlation id, Swagger único. No publica /internal/**")
+    Container(gateway, "API Gateway", "Java 21, Spring Boot 4.0.9, Spring Cloud Gateway (WebFlux), :8080", "Único punto de entrada. Enruta /api/v1/*, Security Filter (JWT + rol por ruta), correlation id, Swagger único. No publica /internal/*")
     Container(flight, "Flight Service", "Java 21, Spring Boot 4.1.2, :8081 (solo red interna)", "Vuelos, estados y plazas. Fuente de verdad de la capacidad. API pública /api/v1/flights y API interna /internal/v1/flights. Job de verificación de salida")
     Container(reservation, "Reservation Service", "Java 21, Spring Boot 4.1.2, :8082 (solo red interna)", "Pasajeros y reservas. Orquesta la reserva contra Flight. Job de reconciliación cada 1 min")
     Container(common, "aerogest-common", "JAR Maven 1.0.0 (biblioteca, instalada en .m2)", "Conversor de roles de Keycloak, correlation id, formato de error RFC 7807, paginación")
@@ -343,8 +342,8 @@ Rel(user, keycloak, "Login", "OIDC")
 Rel(admin, gateway, "Gestiona vuelos, consulta y cancela reservas", "REST/JSON + JWT ADMIN")
 Rel(user, gateway, "Consulta vuelos, registra pasajeros, reserva y cancela", "REST/JSON + JWT USER")
 
-Rel(gateway, flight, "Enruta /api/v1/flights/**", "HTTP + JWT (token relay), X-Correlation-Id")
-Rel(gateway, reservation, "Enruta /api/v1/passengers/**, /api/v1/reservations/**", "HTTP + JWT (token relay), X-Correlation-Id")
+Rel(gateway, flight, "Enruta /api/v1/flights/*", "HTTP + JWT (token relay), X-Correlation-Id")
+Rel(gateway, reservation, "Enruta /api/v1/passengers/*, /api/v1/reservations/*", "HTTP + JWT (token relay), X-Correlation-Id")
 Rel(gateway, keycloak, "Valida firma de tokens", "JWKS")
 
 Rel(reservation, flight, "Asigna / libera plaza (idempotente por reservationId)", "REST/JSON + JWT SERVICE, directo por la red interna, timeouts 2s/3s")
@@ -584,8 +583,10 @@ independiente que se consume por versión).
 
 **Mecanismo de autenticación.** OAuth 2.0 / OpenID Connect con **Keycloak 26** (realm `aerogest`),
 JWT y Spring Security en el gateway y en los dos servicios.
-- Usuarios: obtienen un JWT con el cliente público `aerogest-api` (password grant, habilitado solo
-  para demostración y Postman).
+- Usuarios: inician sesión en Keycloak con el cliente público `aerogest-api`. En Swagger
+  (`:8080/swagger-ui.html`, *Authorize* → `keycloak`) es el flujo OIDC estándar, **authorization
+  code + PKCE**: el usuario escribe su contraseña en la página de Keycloak, nunca en AeroGest. Postman y
+  los scripts usan *password grant*, habilitado solo para automatizar la demostración.
 - Servicio a servicio: Reservation Service usa el cliente confidencial `reservation-service` con
   **client credentials**; el token se cachea y se renueva 30 s antes de vencer.
 - Gateway, Flight y Reservation son **resource servers**: validan firma (JWKS), emisor y
@@ -644,82 +645,6 @@ es barato porque la clave pública queda en caché.
 Se verifica en las carpetas 00–04 de la colección Postman y en pruebas automáticas
 (`ApiGatewayIntegrationTest`, `…sinCredencialesDevuelve401`,
 `…unUsuarioNoPuedeVerNiCancelarUnaReservaAjena_403`, `…elRolServiceNoTieneAccesoALaApiPublica_403`).
-
----
-
-## Sección 10 — Integración con la API pública externa
-
-Detalle y alternativas descartadas en `docs/adr/0006-integracion-opensky-salida-real.md`; corrida
-real en `docs/evidencias/opensky-en-vivo.md`.
-
-| Pregunta del enunciado | Respuesta |
-|---|---|
-| ¿Qué API? | **OpenSky Network**, `GET https://opensky-network.org/api/states/all`, API REST pública y gratuita con el estado de las aeronaves en tiempo real. Acceso anónimo (sin cuenta ni secretos), 400 créditos por día |
-| ¿Por qué se necesita externamente? | Si un vuelo ya despegó no es un dato que la aerolínea defina: ocurre en el mundo real. Hoy RN-04 lo aproxima con el horario programado, que falla cuando el vuelo sale antes o cuando nadie actualiza el estado a mano |
-| ¿Qué proceso depende de ella? | La reserva (F-07): un vuelo que ya despegó no puede aceptar reservas. La información de OpenSky cierra el vuelo (RN-16) y a partir de ahí el `UPDATE` atómico de Flight rechaza las nuevas solicitudes |
-| ¿Cómo se integra? | Un job de **Flight Service** (dueño del estado del vuelo) corre cada 5 min, toma los vuelos `SCHEDULED` con aeronave asignada cuya salida programada está entre ahora − 6 h y ahora + 2 h y hace **una sola consulta** con todos sus `icao24` (1 crédito; 288 por día). Si la aeronave está en el aire con el callsign del vuelo, lo pasa a `CLOSED`. El ADMIN puede forzarlo con `POST /api/v1/flights/{id}/departure-check`. Cliente HTTP del JDK con timeouts de 3 s (conexión) y 5 s (respuesta). No está en el camino de la reserva: la latencia y la disponibilidad de una reserva no dependen de OpenSky |
-| ¿Qué información se usa? | De cada aeronave: `icao24` (identifica el avión), `callsign` (identifica el vuelo que está haciendo; el mismo avión hace varios tramos por día) y `on_ground`. El vuelo guarda su `callsign` y `aircraftIcao24`, que carga el ADMIN |
-| ¿Qué pasa si no responde o responde algo inesperado? | No se cambia el estado del vuelo y rige RN-04 por horario. El job lo registra en el log y reintenta en la próxima corrida; ante un 429 no vuelve a consultar hasta lo que indica `X-Rate-Limit-Retry-After-Seconds`. Una respuesta mal formada se rechaza entera. El endpoint manual responde 503 `OPENSKY_UNAVAILABLE` / `OPENSKY_RATE_LIMITED`, 504 `OPENSKY_TIMEOUT` o 502 `OPENSKY_INVALID_RESPONSE`. Nunca se cierra un vuelo sin una respuesta válida |
-
----
-
-## Sección 10 — Colección de endpoints y escenarios de prueba
-
-**Herramienta.** Colección **Postman** (`postman/AeroGest.postman_collection.json`) + entorno
-(`postman/aerogest-local.postman_environment.json`). Se ejecuta desde Postman (*Run collection*) o
-por consola con Newman (`scripts/run-postman.ps1`). Cada solicitud tiene *tests* que validan código
-HTTP, `code` de error y efecto (por ejemplo, plazas disponibles antes y después). Todas las
-solicitudes de negocio van al gateway.
-
-**Organización (carpetas, en orden de ejecución)**
-
-| Carpeta | Contenido |
-|---|---|
-| 00 Autenticación | Tokens de `admin`, `user1`, `user2` y del cliente `reservation-service` |
-| 01 Vuelos | Alta, duplicado, validaciones, consulta, búsqueda, inexistente, transición inválida, la API interna no se publica en el gateway |
-| 02 Pasajeros | Registro, documento duplicado, datos inválidos, acceso a pasajero ajeno |
-| 03 Reservas (proceso principal) | Reserva confirmada, plaza descontada, duplicada, pasajero/reserva ajenos, vuelo inexistente, 401/403 |
-| 04 Cancelación | Cancelación ajena, cancelación correcta, plaza liberada, cancelación repetida, nueva reserva |
-| 05 Vuelo no reservable | Reservar en un vuelo cancelado → 409 |
-| 06 Capacidad agotada | Vuelo de capacidad 1: primera confirmada, segunda rechazada |
-| 07 [Manual] Flight apagado | `docker stop` → 503 y reserva no confirmada |
-| 08 [Manual] Flight sin responder | `docker pause` → 504 y reserva no confirmada |
-| 09 [Internet] OpenSky | Avión real en el aire → vuelo `CLOSED` y reserva 409; otro callsign, USER, datos de aeronave inválidos, vuelo sin aeronave |
-
-**Variables de entorno.** `gatewayUrl` (`http://localhost:8080`), `keycloakUrl` y las claves
-`adminPassword`, `userPassword`, `reservationClientSecret` (se completan desde el `.env`, no se
-versionan). Variables de colección generadas en ejecución: tokens, ids de vuelos, pasajeros y
-reservas, y un sufijo aleatorio para códigos de vuelo y documentos.
-
-**Autenticación.** La carpeta 00 obtiene los tokens de Keycloak y los guarda en variables; cada
-solicitud usa `Bearer {{tokenUser1}}`, `{{tokenAdmin}}`, etc., según el actor del escenario.
-
-**Datos iniciales.** Usuarios y roles los importa Keycloak desde `keycloak/aerogest-realm.json`. Los
-vuelos y pasajeros los crea la propia colección con datos únicos por corrida, por lo que se puede
-repetir sin limpiar las bases.
-
-**Orden de ejecución.** 00 → 06 en secuencia (cada carpeta usa ids generados por las anteriores).
-07 y 08 son manuales: indican qué comando de Docker ejecutar antes y después.
-
-**Escenarios positivos:** alta y consulta de vuelo; cambio de estado válido; registro de pasajero;
-reserva confirmada con plaza descontada; consulta de reservas propias y de todas como ADMIN;
-cancelación con plaza devuelta; nueva reserva tras cancelar.
-
-**Escenarios negativos:**
-- *Reglas de negocio:* código duplicado (RN-01), horarios inválidos (RN-02), capacidad 0 (RN-03),
-  origen = destino (RN-11), transición inválida (RN-08), documento duplicado (RN-14), reserva
-  duplicada (RN-06), vuelo cancelado (RN-04), capacidad agotada (RN-05), cancelación repetida (RN-07).
-- *Seguridad:* sin token (401), USER crea vuelo (403), SERVICE en API pública (403), USER en API
-  interna a través del gateway (403), pasajero/reserva ajenos (403).
-- *Integraciones:* Flight apagado (503), Flight sin responder (504), vuelo inexistente validado
-  contra Flight (404); en todos los casos se verifica que la reserva **no** quedó `CONFIRMED`.
-- *API externa (carpeta 09, necesita Internet):* busca en OpenSky un avión en el aire, crea un vuelo
-  con su callsign e icao24, `departure-check` lo cierra (`DEPARTURE_DETECTED`), la reserva da 409
-  `FLIGHT_NOT_RESERVABLE`; mismo avión con otro callsign (`OTHER_FLIGHT`), USER (403), callsign sin
-  icao24 (400) y vuelo sin aeronave (409). Las fallas de OpenSky se prueban con JUnit.
-
-Complementos: smoke tests PowerShell (`scripts/smoke-reservations.ps1`, incluye 10 reservas
-simultáneas por la última plaza; `scripts/smoke-flights.ps1`) y 248 pruebas JUnit.
 
 ---
 
@@ -788,6 +713,66 @@ Alternativas:
 
 ---
 
+## Sección 10 — Colección de endpoints y escenarios de prueba
+
+**Herramienta.** Colección **Postman** (`postman/AeroGest.postman_collection.json`) + entorno
+(`postman/aerogest-local.postman_environment.json`). Se ejecuta desde Postman (*Run collection*) o
+por consola con Newman (`scripts/run-postman.ps1`). Cada solicitud tiene *tests* que validan código
+HTTP, `code` de error y efecto (por ejemplo, plazas disponibles antes y después). Todas las
+solicitudes de negocio van al gateway.
+
+**Organización (carpetas, en orden de ejecución)**
+
+| Carpeta | Contenido |
+|---|---|
+| 00 Autenticación | Tokens de `admin`, `user1`, `user2` y del cliente `reservation-service` |
+| 01 Vuelos | Alta, duplicado, validaciones, consulta, búsqueda, inexistente, transición inválida, la API interna no se publica en el gateway |
+| 02 Pasajeros | Registro, documento duplicado, datos inválidos, acceso a pasajero ajeno |
+| 03 Reservas (proceso principal) | Reserva confirmada, plaza descontada, duplicada, pasajero/reserva ajenos, vuelo inexistente, 401/403 |
+| 04 Cancelación | Cancelación ajena, cancelación correcta, plaza liberada, cancelación repetida, nueva reserva |
+| 05 Vuelo no reservable | Reservar en un vuelo cancelado → 409 |
+| 06 Capacidad agotada | Vuelo de capacidad 1: primera confirmada, segunda rechazada |
+| 07 [Manual] Flight apagado | `docker stop` → 503 y reserva no confirmada |
+| 08 [Manual] Flight sin responder | `docker pause` → 504 y reserva no confirmada |
+| 09 [Internet] OpenSky | Avión real en el aire → vuelo `CLOSED` y reserva 409; otro callsign, USER, datos de aeronave inválidos, vuelo sin aeronave |
+
+**Variables de entorno.** `gatewayUrl` (`http://localhost:8080`), `keycloakUrl` y las claves
+`adminPassword`, `userPassword`, `reservationClientSecret` (se completan desde el `.env`, no se
+versionan). Variables de colección generadas en ejecución: tokens, ids de vuelos, pasajeros y
+reservas, y un sufijo aleatorio para códigos de vuelo y documentos.
+
+**Autenticación.** La carpeta 00 obtiene los tokens de Keycloak y los guarda en variables; cada
+solicitud usa `Bearer {{tokenUser1}}`, `{{tokenAdmin}}`, etc., según el actor del escenario.
+
+**Datos iniciales.** Usuarios y roles los importa Keycloak desde `keycloak/aerogest-realm.json`. Los
+vuelos y pasajeros los crea la propia colección con datos únicos por corrida, por lo que se puede
+repetir sin limpiar las bases.
+
+**Orden de ejecución.** 00 → 06 en secuencia (cada carpeta usa ids generados por las anteriores).
+07 y 08 son manuales: indican qué comando de Docker ejecutar antes y después.
+
+**Escenarios positivos:** alta y consulta de vuelo; cambio de estado válido; registro de pasajero;
+reserva confirmada con plaza descontada; consulta de reservas propias y de todas como ADMIN;
+cancelación con plaza devuelta; nueva reserva tras cancelar.
+
+**Escenarios negativos:**
+- *Reglas de negocio:* código duplicado (RN-01), horarios inválidos (RN-02), capacidad 0 (RN-03),
+  origen = destino (RN-11), transición inválida (RN-08), documento duplicado (RN-14), reserva
+  duplicada (RN-06), vuelo cancelado (RN-04), capacidad agotada (RN-05), cancelación repetida (RN-07).
+- *Seguridad:* sin token (401), USER crea vuelo (403), SERVICE en API pública (403), USER en API
+  interna a través del gateway (403), pasajero/reserva ajenos (403).
+- *Integraciones:* Flight apagado (503), Flight sin responder (504), vuelo inexistente validado
+  contra Flight (404); en todos los casos se verifica que la reserva **no** quedó `CONFIRMED`.
+- *API externa (carpeta 09, necesita Internet):* busca en OpenSky un avión en el aire, crea un vuelo
+  con su callsign e icao24, `departure-check` lo cierra (`DEPARTURE_DETECTED`), la reserva da 409
+  `FLIGHT_NOT_RESERVABLE`; mismo avión con otro callsign (`OTHER_FLIGHT`), USER (403), callsign sin
+  icao24 (400) y vuelo sin aeronave (409). Las fallas de OpenSky se prueban con JUnit.
+
+Complementos: smoke tests PowerShell (`scripts/smoke-reservations.ps1`, incluye 10 reservas
+simultáneas por la última plaza; `scripts/smoke-flights.ps1`) y 248 pruebas JUnit.
+
+---
+
 ## Sección 11 — Alcance acordado, desafíos y exclusiones
 
 **Proceso central que quedará funcionando.** Reserva de plaza de punta a punta a través del gateway
@@ -806,6 +791,19 @@ F-15 (prioridad alta/media de la sección 04). Complementarias: F-02, F-06, F-11
   idempotencia, timeouts, clasificación de errores, compensación, correlation id).
 - Gateway y servicios → Keycloak (validación de JWT; client credentials).
 - Flight Service → OpenSky Network (job periódico, timeouts, tolerancia a fallas).
+
+**Integración con la API pública externa (OpenSky Network).** Respuesta a lo que pide el enunciado.
+Detalle y alternativas descartadas en `docs/adr/0006-integracion-opensky-salida-real.md`; corrida
+real en `docs/evidencias/opensky-en-vivo.md`.
+
+| Pregunta del enunciado | Respuesta |
+|---|---|
+| ¿Qué API? | **OpenSky Network**, `GET https://opensky-network.org/api/states/all`, API REST pública y gratuita con el estado de las aeronaves en tiempo real. Acceso anónimo (sin cuenta ni secretos), 400 créditos por día |
+| ¿Por qué se necesita externamente? | Si un vuelo ya despegó no es un dato que la aerolínea defina: ocurre en el mundo real. Hoy RN-04 lo aproxima con el horario programado, que falla cuando el vuelo sale antes o cuando nadie actualiza el estado a mano |
+| ¿Qué proceso depende de ella? | La reserva (F-07): un vuelo que ya despegó no puede aceptar reservas. La información de OpenSky cierra el vuelo (RN-16) y a partir de ahí el `UPDATE` atómico de Flight rechaza las nuevas solicitudes |
+| ¿Cómo se integra? | Un job de **Flight Service** (dueño del estado del vuelo) corre cada 5 min, toma los vuelos `SCHEDULED` con aeronave asignada cuya salida programada está entre ahora − 6 h y ahora + 2 h y hace **una sola consulta** con todos sus `icao24` (1 crédito; 288 por día). Si la aeronave está en el aire con el callsign del vuelo, lo pasa a `CLOSED`. El ADMIN puede forzarlo con `POST /api/v1/flights/{id}/departure-check`. Cliente HTTP del JDK con timeouts de 3 s (conexión) y 5 s (respuesta). No está en el camino de la reserva: la latencia y la disponibilidad de una reserva no dependen de OpenSky |
+| ¿Qué información se usa? | De cada aeronave: `icao24` (identifica el avión), `callsign` (identifica el vuelo que está haciendo; el mismo avión hace varios tramos por día) y `on_ground`. El vuelo guarda su `callsign` y `aircraftIcao24`, que carga el ADMIN |
+| ¿Qué pasa si no responde o responde algo inesperado? | No se cambia el estado del vuelo y rige RN-04 por horario. El job lo registra en el log y reintenta en la próxima corrida; ante un 429 no vuelve a consultar hasta lo que indica `X-Rate-Limit-Retry-After-Seconds`. Una respuesta mal formada se rechaza entera. El endpoint manual responde 503 `OPENSKY_UNAVAILABLE` / `OPENSKY_RATE_LIMITED`, 504 `OPENSKY_TIMEOUT` o 502 `OPENSKY_INVALID_RESPONSE`. Nunca se cierra un vuelo sin una respuesta válida |
 
 **Desafíos técnicos y funcionales**
 - Consistencia entre dos bases **sin transacción distribuida** (reserva PENDING → plaza → CONFIRMED,
@@ -842,15 +840,11 @@ mensajería asíncrona (colas) y descubrimiento de servicios (Eureka): las rutas
 
 | # | Condición inicial | Acción | Resultado esperado | Relación |
 |---|---|---|---|---|
-| CV-1 | Sistema levantado con `docker compose up -d --build`; vuelo `SCHEDULED` con capacidad 2; `user1` con un pasajero propio | `user1` hace `POST :8080/api/v1/reservations` | 201 `CONFIRMED`; `GET :8080/api/v1/flights/{id}` muestra `availableSeats` 2 → 1 | F-07, F-10, RN-04, RN-05; Postman 03 |
+| CV-1 | Sistema levantado con `docker compose up -d --build`; vuelo `SCHEDULED` con capacidad 2; `user1` con un pasajero propio | `user1` hace `POST :8080/api/v1/reservations` y se busca el `X-Correlation-Id` de la respuesta en los logs | 201 `CONFIRMED`; `GET :8080/api/v1/flights/{id}` muestra `availableSeats` 2 → 1; el mismo id aparece en el gateway, en Reservation y en Flight | F-07, F-10, F-14, RN-04, RN-05; `POST /api/v1/reservations`; Postman 03 |
 | CV-2 | Vuelo con 1 plaza libre; 10 pasajeros distintos | 10 reservas simultáneas al mismo vuelo | Exactamente 1 `CONFIRMED` y 9 `REJECTED` (409 `NO_AVAILABILITY`); `availableSeats` = 0, nunca negativo | F-07, F-10, RN-05; `smoke-reservations.ps1`, `SeatAllocationIntegrationTest` |
 | CV-3 | Reserva `CONFIRMED` de `user1` | `user1` hace `POST :8080/api/v1/reservations/{id}/cancel` dos veces | 1ª: 200 `CANCELLED` y plaza devuelta (1 → 2); 2ª: 409 y la plaza sigue en 2 | F-09, RN-07; Postman 04 |
-| CV-4 | Pasajero con reserva activa en el vuelo A | Repetir la misma reserva | 409 `DUPLICATE_ACTIVE_RESERVATION`; la plaza no se descuenta | F-07, RN-06; Postman 03 |
-| CV-5 | Vuelo B en estado `CANCELLED` | Reservar en el vuelo B | 409 `FLIGHT_NOT_RESERVABLE`; reserva `REJECTED` | F-03, F-07, RN-04, RN-08; Postman 05 |
-| CV-6 | Reserva de `user1`; tokens de `user2` y del cliente `reservation-service` | `user2` consulta/cancela esa reserva; SERVICE llama a `/api/v1/reservations`; petición sin token | 403 (servicio), 403 (gateway) y 401 (gateway), en formato RFC 7807 | F-13, F-14, RN-09; Postman 00–04 |
-| CV-7 | Flight Service detenido (`docker stop`) o congelado (`docker pause`) | `user1` intenta reservar | 503 / 504; la reserva no queda `CONFIRMED` (`REJECTED` o `PENDING` que el job pasa a `REJECTED` en ≤ 6 min tras volver Flight) | F-07, F-12, RN-10; Postman 07/08, `smoke-reservations.ps1 -IncludeFailures` |
-| CV-8 | Admin autenticado | Crear vuelo con código duplicado / llegada antes de salida / capacidad 0 / origen = destino | 409 `DUPLICATE_FLIGHT_CODE`, 400 `INVALID_SCHEDULE`, 400 (capacidad), 400 `INVALID_ROUTE` | F-01, RN-01, 02, 03, 11; Postman 01 |
-| CV-9 | Sistema levantado; token de `user1` | `GET :8080/internal/v1/flights/{id}/availability`; intentar `:8081` desde el host | 403 del gateway; el puerto 8081 no responde desde afuera (no está publicado) | F-14, RN-09; Postman 01, `ApiGatewayIntegrationTest` |
-| CV-10 | Las solicitudes de CV-1 | Buscar el `X-Correlation-Id` de la respuesta en los logs | El mismo id aparece en el gateway, en Reservation y en Flight | F-14; guion de defensa paso 9 (la evidencia guardada en `docs/evidencias/consistencia-entre-bases.md` es anterior al gateway y muestra solo los dos servicios) |
-| CV-11 | Vuelo `SCHEDULED` con salida futura cuyo callsign OpenSky informa en el aire | `POST .../departure-check` (o corre el job); luego `user1` intenta reservar | El vuelo pasa a `CLOSED`; la reserva recibe 409 `FLIGHT_NOT_RESERVABLE` | F-15, RN-16 |
-| CV-12 | OpenSky inaccesible (URL inválida o sin red) | Corre el job; luego `user1` reserva en un vuelo `SCHEDULED` futuro | El vuelo no cambia de estado; la reserva se confirma normalmente; el log registra la falla | F-15, RN-16, RN-04 |
+| CV-4 | Pasajero con reserva activa en el vuelo A; vuelo B en estado `CANCELLED` | Repetir la reserva en A; reservar en B | A: 409 `DUPLICATE_ACTIVE_RESERVATION` y la plaza no se descuenta. B: 409 `FLIGHT_NOT_RESERVABLE` y la reserva queda `REJECTED` | F-03, F-07, RN-04, RN-06, RN-08; Postman 03 y 05 |
+| CV-5 | Reserva de `user1`; tokens de `user1`, `user2` y del cliente `reservation-service` | `user2` consulta esa reserva; SERVICE llama a `/api/v1/reservations`; `user1` llama a `:8080/internal/v1/flights/{id}/availability`; petición sin token | 403 `ACCESS_DENIED` (servicio), 403 (gateway), 403 (gateway: la API interna no se publica) y 401 (gateway), todos en formato RFC 7807 | F-13, F-14, RN-09; Postman 00–04, `ApiGatewayIntegrationTest` |
+| CV-6 | Flight Service detenido (`docker stop`) o congelado (`docker pause`) | `user1` intenta reservar | 503 / 504; la reserva no queda `CONFIRMED` (`REJECTED` o `PENDING` que el job pasa a `REJECTED` en ≤ 6 min tras volver Flight) | F-07, F-12, RN-10; Postman 07/08, `smoke-reservations.ps1 -IncludeFailures` |
+| CV-7 | Vuelo `SCHEDULED` con salida programada futura y la aeronave (callsign + icao24) de un avión que OpenSky muestra en el aire | `POST :8080/api/v1/flights/{id}/departure-check` (o corre el job); luego `user1` intenta reservar | `result = DEPARTURE_DETECTED`, el vuelo pasa a `CLOSED`; la reserva recibe 409 `FLIGHT_NOT_RESERVABLE` | F-15, RN-16; Postman 09, `evidencias/opensky-en-vivo.md` |
+| CV-8 | OpenSky inaccesible o con respuesta inválida | Verificación manual de un vuelo con aeronave; luego `user1` reserva en ese vuelo | 503/504/502 con `code` `OPENSKY_*`; el vuelo no cambia de estado y la reserva se confirma normalmente (rige RN-04 por horario) | F-15, RN-16, RN-04; `DepartureVerificationIntegrationTest` |

@@ -1,360 +1,461 @@
-﻿# Colección Postman con newman - 2026-11-01 19:15 - sistema en Docker
+﻿# Colección Postman con newman - 2026-11-04 11:43 - sistema en Docker, todo por el gateway :8080
 
 ## Carpetas 00 a 06 (.\scripts\run-postman.ps1)
 
+(node:6136) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
 newman
 
 AeroGest
 
 □ 00 Autenticación (Keycloak)
 └ Token ADMIN (admin)
-  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.32kB, 4.8s]
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.35kB, 2.3s]
   √  HTTP 200
 
 └ Token USER (user1)
-  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 377ms]
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.34kB, 898ms]
   √  HTTP 200
 
 └ Token USER (user2)
-  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 353ms]
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.34kB, 455ms]
   √  HTTP 200
 
 └ Token SERVICE (reservation-service)
-  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 1.37kB, 110ms]
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 1.37kB, 111ms]
   √  HTTP 200
 
 □ 01 Vuelos (Flight Service)
 └ Sin token -> 401
-  GET http://localhost:8081/api/v1/flights [401 Unauthorized, 577B, 419ms]
+  GET http://localhost:8080/api/v1/flights [401 Unauthorized, 563B, 624ms]
   √  HTTP 401
   √  code = UNAUTHENTICATED
 
 └ USER no puede crear vuelos -> 403
-  POST http://localhost:8081/api/v1/flights [403 Forbidden, 550B, 206ms]
+  POST http://localhost:8080/api/v1/flights [403 Forbidden, 536B, 140ms]
   √  HTTP 403
   √  code = ACCESS_DENIED
 
 └ ADMIN crea el vuelo A (capacidad 2) -> 201
-  POST http://localhost:8081/api/v1/flights [201 Created, 612B, 709ms]
+  POST http://localhost:8080/api/v1/flights [201 Created, 739B, 5s]
   √  HTTP 201
   √  Nace SCHEDULED con todas las plazas libres
 
 └ Código duplicado -> 409 (RN-01)
-  POST http://localhost:8081/api/v1/flights [409 Conflict, 598B, 119ms]
+  POST http://localhost:8080/api/v1/flights [409 Conflict, 636B, 745ms]
   √  HTTP 409
   √  code = DUPLICATE_FLIGHT_CODE
 
 └ Llegada anterior a la salida -> 400 (RN-02)
-  POST http://localhost:8081/api/v1/flights [400 Bad Request, 569B, 108ms]
+  POST http://localhost:8080/api/v1/flights [400 Bad Request, 636B, 115ms]
   √  HTTP 400
   √  code = INVALID_SCHEDULE
 
 └ Capacidad 0 -> 400 (RN-03)
-  POST http://localhost:8081/api/v1/flights [400 Bad Request, 642B, 118ms]
+  POST http://localhost:8080/api/v1/flights [400 Bad Request, 709B, 1089ms]
   √  HTTP 400
   √  code = VALIDATION_ERROR
 
 └ Origen igual a destino -> 400 (RN-11)
-  POST http://localhost:8081/api/v1/flights [400 Bad Request, 570B, 86ms]
+  POST http://localhost:8080/api/v1/flights [400 Bad Request, 637B, 1906ms]
   √  HTTP 400
   √  code = INVALID_ROUTE
 
 └ USER consulta el vuelo A -> 200
-  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 111ms]
+  GET http://localhost:8080/api/v1/flights/4 [200 OK, 698B, 585ms]
   √  HTTP 200
   √  Es el vuelo creado
 
 └ USER busca vuelos COR -> EZE programados -> 200
-  GET http://localhost:8081/api/v1/flights?origin=COR&destination=EZE&status=SCHEDULED&size=5 [200 OK, 1.39kB, 319ms]
+  GET http://localhost:8080/api/v1/flights?origin=COR&destination=EZE&status=SCHEDULED&size=5 [200 OK, 1.32kB, 2.1s]
   √  HTTP 200
   √  Devuelve una página
 
 └ Vuelo inexistente -> 404
-  GET http://localhost:8081/api/v1/flights/999999999 [404 Not Found, 588B, 133ms]
+  GET http://localhost:8080/api/v1/flights/999999999 [404 Not Found, 626B, 869ms]
   √  HTTP 404
   √  code = FLIGHT_NOT_FOUND
 
 └ SCHEDULED -> COMPLETED es inválido -> 409 (RN-08)
-  PATCH http://localhost:8081/api/v1/flights/19/status [409 Conflict, 602B, 85ms]
+  PATCH http://localhost:8080/api/v1/flights/4/status [409 Conflict, 640B, 2.4s]
   √  HTTP 409
   √  code = INVALID_STATUS_TRANSITION
 
 └ USER no puede usar la API interna -> 403
-  GET http://localhost:8081/internal/v1/flights/19/availability [403 Forbidden, 550B, 72ms]
+  GET http://localhost:8080/internal/v1/flights/4/availability [403 Forbidden, 536B, 177ms]
   √  HTTP 403
   √  code = ACCESS_DENIED
 
-└ SERVICE consulta la disponibilidad interna -> 200
-  GET http://localhost:8081/internal/v1/flights/19/availability [200 OK, 496B, 55ms]
-  √  HTTP 200
-  √  Admite reservas
+└ El gateway no publica la API interna, ni para SERVICE -> 403
+  GET http://localhost:8080/internal/v1/flights/4/availability [403 Forbidden, 536B, 151ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
 
 □ 02 Pasajeros (Reservation Service)
 └ user1 registra a Ana -> 201
-  POST http://localhost:8082/api/v1/passengers [201 Created, 667B, 906ms]
+  POST http://localhost:8080/api/v1/passengers [201 Created, 705B, 1710ms]
   √  HTTP 201
 
 └ Mismo DNI (otro usuario) -> 409 (RN-14)
-  POST http://localhost:8082/api/v1/passengers [409 Conflict, 613B, 102ms]
+  POST http://localhost:8080/api/v1/passengers [409 Conflict, 651B, 194ms]
   √  HTTP 409
   √  code = DUPLICATE_PASSENGER_DOCUMENT
 
 └ DNI con letras -> 400
-  POST http://localhost:8082/api/v1/passengers [400 Bad Request, 588B, 41ms]
+  POST http://localhost:8080/api/v1/passengers [400 Bad Request, 655B, 104ms]
   √  HTTP 400
   √  code = INVALID_PASSENGER_DATA
 
 └ Datos faltantes -> 400
-  POST http://localhost:8082/api/v1/passengers [400 Bad Request, 804B, 75ms]
+  POST http://localhost:8080/api/v1/passengers [400 Bad Request, 871B, 200ms]
   √  HTTP 400
   √  code = VALIDATION_ERROR
 
 └ user2 no ve el pasajero de user1 -> 403 (RN-09)
-  GET http://localhost:8082/api/v1/passengers/42 [403 Forbidden, 589B, 124ms]
+  GET http://localhost:8080/api/v1/passengers/14 [403 Forbidden, 627B, 356ms]
   √  HTTP 403
   √  code = ACCESS_DENIED
 
 └ user2 registra a Bruno -> 201
-  POST http://localhost:8082/api/v1/passengers [201 Created, 669B, 48ms]
+  POST http://localhost:8080/api/v1/passengers [201 Created, 707B, 272ms]
   √  HTTP 201
 
 └ user1 lista sus pasajeros -> 200
-  GET http://localhost:8082/api/v1/passengers [200 OK, 5.25kB, 174ms]
+  GET http://localhost:8080/api/v1/passengers [200 OK, 3.37kB, 557ms]
   √  HTTP 200
   √  Todos son de user1
 
 □ 03 Reservas (proceso principal)
 └ Sin token -> 401
-  GET http://localhost:8082/api/v1/reservations [401 Unauthorized, 577B, 30ms]
+  GET http://localhost:8080/api/v1/reservations [401 Unauthorized, 563B, 22ms]
   √  HTTP 401
   √  code = UNAUTHENTICATED
 
 └ SERVICE no usa la API pública -> 403
-  GET http://localhost:8082/api/v1/reservations [403 Forbidden, 550B, 23ms]
+  GET http://localhost:8080/api/v1/reservations [403 Forbidden, 536B, 56ms]
   √  HTTP 403
   √  code = ACCESS_DENIED
 
 └ user1 reserva a Ana en el vuelo A -> 201
-  POST http://localhost:8082/api/v1/reservations [201 Created, 705B, 305ms]
+  POST http://localhost:8080/api/v1/reservations [201 Created, 742B, 3.1s]
   √  HTTP 201
   √  Queda CONFIRMED
   √  Devuelve X-Correlation-Id
 
 └ Flight descontó la plaza (2 -> 1)
-  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 34ms]
+  GET http://localhost:8080/api/v1/flights/4 [200 OK, 698B, 92ms]
   √  HTTP 200
   √  Plaza ocupada: availableSeats = 1
 
 └ Misma reserva otra vez -> 409 (RN-06)
-  POST http://localhost:8082/api/v1/reservations [409 Conflict, 617B, 77ms]
+  POST http://localhost:8080/api/v1/reservations [409 Conflict, 655B, 175ms]
   √  HTTP 409
   √  code = DUPLICATE_ACTIVE_RESERVATION
 
 └ user2 no reserva con el pasajero de user1 -> 403 (RN-09)
-  POST http://localhost:8082/api/v1/reservations [403 Forbidden, 589B, 66ms]
+  POST http://localhost:8080/api/v1/reservations [403 Forbidden, 627B, 103ms]
   √  HTTP 403
   √  code = ACCESS_DENIED
 
 └ user2 no ve la reserva de user1 -> 403 (RN-09)
-  GET http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e [403 Forbidden, 622B, 71ms]
+  GET http://localhost:8080/api/v1/reservations/672933d6-0aa3-41b5-87ba-f06f623da560 [403 Forbidden, 660B, 58ms]
   √  HTTP 403
   √  code = ACCESS_DENIED
 
 └ Vuelo inexistente -> 404
-  POST http://localhost:8082/api/v1/reservations [404 Not Found, 580B, 448ms]
+  POST http://localhost:8080/api/v1/reservations [404 Not Found, 618B, 218ms]
   √  HTTP 404
   √  code = FLIGHT_NOT_FOUND
 
 └ Solicitud sin vuelo -> 400
-  POST http://localhost:8082/api/v1/reservations [400 Bad Request, 634B, 81ms]
+  POST http://localhost:8080/api/v1/reservations [400 Bad Request, 701B, 248ms]
   √  HTTP 400
   √  code = VALIDATION_ERROR
 
 └ user1 consulta su reserva -> 200
-  GET http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e [200 OK, 621B, 245ms]
+  GET http://localhost:8080/api/v1/reservations/672933d6-0aa3-41b5-87ba-f06f623da560 [200 OK, 658B, 87ms]
   √  HTTP 200
   √  Está CONFIRMED
 
 └ ADMIN lista todas las reservas -> 200
-  GET http://localhost:8082/api/v1/reservations?size=5 [200 OK, 1.65kB, 161ms]
+  GET http://localhost:8080/api/v1/reservations?size=5 [200 OK, 1.68kB, 317ms]
   √  HTTP 200
   √  Ve reservas
 
 □ 04 Cancelación (RN-07)
 └ user2 no puede cancelar la reserva de user1 -> 403
-  POST http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e/cancel [403 Forbidden, 622B, 68ms]
+  POST http://localhost:8080/api/v1/reservations/672933d6-0aa3-41b5-87ba-f06f623da560/cancel [403 Forbidden, 660B, 62ms]
   √  HTTP 403
   √  code = ACCESS_DENIED
 
 └ user1 cancela su reserva -> 200
-  POST http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e/cancel [200 OK, 624B, 213ms]
+  POST http://localhost:8080/api/v1/reservations/672933d6-0aa3-41b5-87ba-f06f623da560/cancel [200 OK, 661B, 416ms]
   √  HTTP 200
   √  Queda CANCELLED
 
 └ Flight liberó la plaza (1 -> 2)
-  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 46ms]
+  GET http://localhost:8080/api/v1/flights/4 [200 OK, 698B, 200ms]
   √  HTTP 200
   √  Plaza liberada: availableSeats = 2
 
 └ Cancelar otra vez -> 409
-  POST http://localhost:8082/api/v1/reservations/bc381c88-2a8e-4111-bf55-7bd003a7319e/cancel [409 Conflict, 632B, 40ms]
+  POST http://localhost:8080/api/v1/reservations/672933d6-0aa3-41b5-87ba-f06f623da560/cancel [409 Conflict, 670B, 94ms]
   √  HTTP 409
   √  code = INVALID_RESERVATION_STATE
 
 └ La plaza no se liberó dos veces (sigue en 2)
-  GET http://localhost:8081/api/v1/flights/19 [200 OK, 570B, 36ms]
+  GET http://localhost:8080/api/v1/flights/4 [200 OK, 698B, 90ms]
   √  HTTP 200
   √  Sin doble liberación: availableSeats = 2
 
 └ Tras cancelar, Ana puede volver a reservar -> 201
-  POST http://localhost:8082/api/v1/reservations [201 Created, 705B, 182ms]
+  POST http://localhost:8080/api/v1/reservations [201 Created, 742B, 161ms]
   √  HTTP 201
 
 □ 05 Vuelo cancelado o no reservable (RN-04)
 └ ADMIN crea el vuelo B -> 201
-  POST http://localhost:8081/api/v1/flights [201 Created, 612B, 53ms]
+  POST http://localhost:8080/api/v1/flights [201 Created, 739B, 111ms]
   √  HTTP 201
 
 └ ADMIN cancela el vuelo B -> 200
-  PATCH http://localhost:8081/api/v1/flights/20/status [200 OK, 570B, 75ms]
+  PATCH http://localhost:8080/api/v1/flights/5/status [200 OK, 698B, 460ms]
   √  HTTP 200
 
 └ Reservar en el vuelo cancelado -> 409
-  POST http://localhost:8082/api/v1/reservations [409 Conflict, 617B, 134ms]
+  POST http://localhost:8080/api/v1/reservations [409 Conflict, 655B, 311ms]
   √  HTTP 409
   √  code = FLIGHT_NOT_RESERVABLE
 
 □ 06 Capacidad agotada (RN-05)
 └ ADMIN crea el vuelo C (capacidad 1) -> 201
-  POST http://localhost:8081/api/v1/flights [201 Created, 612B, 45ms]
+  POST http://localhost:8080/api/v1/flights [201 Created, 739B, 121ms]
   √  HTTP 201
 
 └ Ana ocupa la única plaza -> 201
-  POST http://localhost:8082/api/v1/reservations [201 Created, 705B, 151ms]
+  POST http://localhost:8080/api/v1/reservations [201 Created, 742B, 166ms]
   √  HTTP 201
 
 └ Bruno ya no tiene lugar -> 409
-  POST http://localhost:8082/api/v1/reservations [409 Conflict, 586B, 97ms]
+  POST http://localhost:8080/api/v1/reservations [409 Conflict, 624B, 310ms]
   √  HTTP 409
   √  code = NO_AVAILABILITY
 
 └ El vuelo C quedó completo (0 plazas)
-  GET http://localhost:8081/api/v1/flights/21 [200 OK, 570B, 36ms]
+  GET http://localhost:8080/api/v1/flights/6 [200 OK, 698B, 79ms]
   √  HTTP 200
   √  Sin sobreventa: availableSeats = 0
 
 └ La reserva de Bruno quedó REJECTED
-  GET http://localhost:8082/api/v1/reservations?size=20 [200 OK, 4.03kB, 46ms]
+  GET http://localhost:8080/api/v1/reservations?size=20 [200 OK, 1.91kB, 109ms]
   √  HTTP 200
   √  Registrada como REJECTED
 
-┌─────────────────────────┬────────────────────┬───────────────────┐
-│                         │           executed │            failed │
-├─────────────────────────┼────────────────────┼───────────────────┤
-│              iterations │                  1 │                 0 │
-├─────────────────────────┼────────────────────┼───────────────────┤
-│                requests │                 49 │                 0 │
-├─────────────────────────┼────────────────────┼───────────────────┤
-│            test-scripts │                 49 │                 0 │
-├─────────────────────────┼────────────────────┼───────────────────┤
-│      prerequest-scripts │                  9 │                 0 │
-├─────────────────────────┼────────────────────┼───────────────────┤
-│              assertions │                 88 │                 0 │
-├─────────────────────────┴────────────────────┴───────────────────┤
-│ total run duration: 17.5s                                        │
-├──────────────────────────────────────────────────────────────────┤
-│ total data received: 26.22kB (approx)                            │
-├──────────────────────────────────────────────────────────────────┤
-│ average response time: 253ms [min: 23ms, max: 4.8s, s.d.: 682ms] │
-└──────────────────────────────────────────────────────────────────┘
+┌─────────────────────────┬───────────────────┬──────────────────┐
+│                         │          executed │           failed │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              iterations │                 1 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│                requests │                49 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│            test-scripts │                49 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│      prerequest-scripts │                 9 │                0 │
+├─────────────────────────┼───────────────────┼──────────────────┤
+│              assertions │                88 │                0 │
+├─────────────────────────┴───────────────────┴──────────────────┤
+│ total run duration: 35.4s                                      │
+├────────────────────────────────────────────────────────────────┤
+│ total data received: 23.29kB (approx)                          │
+├────────────────────────────────────────────────────────────────┤
+│ average response time: 621ms [min: 22ms, max: 5s, s.d.: 956ms] │
+└────────────────────────────────────────────────────────────────┘
 
 ## Carpeta 07 con Flight apagado (docker stop aerogest-flight-service)
 
+(node:11092) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
 newman
 
 AeroGest
 
 □ 07 [Manual] Flight Service apagado (RN-10)
 └ Token USER (user1)
-  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 1481ms]
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.34kB, 2.3s]
   √  HTTP 200
 
 └ user1 registra un pasajero -> 201
-  POST http://localhost:8082/api/v1/passengers [201 Created, 669B, 905ms]
+  POST http://localhost:8080/api/v1/passengers [201 Created, 707B, 1847ms]
   √  HTTP 201
 
 └ Reservar con Flight apagado -> 503
-  POST http://localhost:8082/api/v1/reservations [503 Service Unavailable, 592B, 4.7s]
+  POST http://localhost:8080/api/v1/reservations [503 Service Unavailable, 659B, 5.1s]
   √  HTTP 503
   √  code = FLIGHT_SERVICE_UNAVAILABLE
   √  Informa el correlationId
 
 └ La reserva no quedó confirmada
-  GET http://localhost:8082/api/v1/reservations?size=20 [200 OK, 5.22kB, 122ms]
+  GET http://localhost:8080/api/v1/reservations?size=20 [200 OK, 4.52kB, 611ms]
   √  HTTP 200
   √  No está CONFIRMED
 
-┌─────────────────────────┬─────────────────────┬─────────────────────┐
-│                         │            executed │              failed │
-├─────────────────────────┼─────────────────────┼─────────────────────┤
-│              iterations │                   1 │                   0 │
-├─────────────────────────┼─────────────────────┼─────────────────────┤
-│                requests │                   4 │                   0 │
-├─────────────────────────┼─────────────────────┼─────────────────────┤
-│            test-scripts │                   4 │                   0 │
-├─────────────────────────┼─────────────────────┼─────────────────────┤
-│      prerequest-scripts │                   1 │                   0 │
-├─────────────────────────┼─────────────────────┼─────────────────────┤
-│              assertions │                   7 │                   0 │
-├─────────────────────────┴─────────────────────┴─────────────────────┤
-│ total run duration: 7.9s                                            │
-├─────────────────────────────────────────────────────────────────────┤
-│ total data received: 7.31kB (approx)                                │
-├─────────────────────────────────────────────────────────────────────┤
-│ average response time: 1824ms [min: 122ms, max: 4.7s, s.d.: 1778ms] │
-└─────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────┬────────────────────┬────────────────────┐
+│                         │           executed │             failed │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              iterations │                  1 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│                requests │                  4 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│            test-scripts │                  4 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│      prerequest-scripts │                  1 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              assertions │                  7 │                  0 │
+├─────────────────────────┴────────────────────┴────────────────────┤
+│ total run duration: 10.5s                                         │
+├───────────────────────────────────────────────────────────────────┤
+│ total data received: 6.6kB (approx)                               │
+├───────────────────────────────────────────────────────────────────┤
+│ average response time: 2.5s [min: 611ms, max: 5.1s, s.d.: 1678ms] │
+└───────────────────────────────────────────────────────────────────┘
 
 ## Carpeta 08 con Flight congelado (docker pause aerogest-flight-service)
 
+(node:6632) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
 newman
 
 AeroGest
 
 □ 08 [Manual] Flight Service no responde a tiempo (RN-10)
 └ Token USER (user1)
-  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.31kB, 3.2s]
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.34kB, 2.6s]
   √  HTTP 200
 
 └ user1 registra un pasajero -> 201
-  POST http://localhost:8082/api/v1/passengers [201 Created, 669B, 2.3s]
+  POST http://localhost:8080/api/v1/passengers [201 Created, 707B, 2.5s]
   √  HTTP 201
 
 └ Reservar con Flight congelado -> 504
-  POST http://localhost:8082/api/v1/reservations [504 Gateway Timeout, 608B, 7.4s]
+  POST http://localhost:8080/api/v1/reservations [504 Gateway Timeout, 646B, 6.4s]
   √  HTTP 504
   √  code = FLIGHT_SERVICE_TIMEOUT
 
 └ La reserva no quedó confirmada
-  GET http://localhost:8082/api/v1/reservations?size=20 [200 OK, 5.22kB, 229ms]
+  GET http://localhost:8080/api/v1/reservations?size=20 [200 OK, 4.76kB, 607ms]
   √  HTTP 200
   √  No está CONFIRMED
 
-┌─────────────────────────┬───────────────────┬───────────────────┐
-│                         │          executed │            failed │
-├─────────────────────────┼───────────────────┼───────────────────┤
-│              iterations │                 1 │                 0 │
-├─────────────────────────┼───────────────────┼───────────────────┤
-│                requests │                 4 │                 0 │
-├─────────────────────────┼───────────────────┼───────────────────┤
-│            test-scripts │                 4 │                 0 │
-├─────────────────────────┼───────────────────┼───────────────────┤
-│      prerequest-scripts │                 1 │                 0 │
-├─────────────────────────┼───────────────────┼───────────────────┤
-│              assertions │                 6 │                 0 │
-├─────────────────────────┴───────────────────┴───────────────────┤
-│ total run duration: 13.8s                                       │
-├─────────────────────────────────────────────────────────────────┤
-│ total data received: 7.29kB (approx)                            │
-├─────────────────────────────────────────────────────────────────┤
-│ average response time: 3.3s [min: 229ms, max: 7.4s, s.d.: 2.6s] │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────┬──────────────────┬──────────────────┐
+│                         │         executed │           failed │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│              iterations │                1 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│                requests │                4 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│            test-scripts │                4 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│      prerequest-scripts │                1 │                0 │
+├─────────────────────────┼──────────────────┼──────────────────┤
+│              assertions │                6 │                0 │
+├─────────────────────────┴──────────────────┴──────────────────┤
+│ total run duration: 12.6s                                     │
+├───────────────────────────────────────────────────────────────┤
+│ total data received: 6.82kB (approx)                          │
+├───────────────────────────────────────────────────────────────┤
+│ average response time: 3s [min: 607ms, max: 6.4s, s.d.: 2.1s] │
+└───────────────────────────────────────────────────────────────┘
+
+## Carpeta 09 contra OpenSky real (necesita Internet)
+
+(node:7616) [DEP0176] DeprecationWarning: fs.F_OK is deprecated, use fs.constants.F_OK instead
+(Use `node --trace-deprecation ...` to show where the warning was created)
+newman
+
+AeroGest
+
+□ 09 [Internet] OpenSky: salida real del vuelo (RN-16)
+└ Token ADMIN
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.35kB, 1588ms]
+  √  HTTP 200
+
+└ Token USER (user1)
+  POST http://localhost:8180/realms/aerogest/protocol/openid-connect/token [200 OK, 2.34kB, 485ms]
+  √  HTTP 200
+
+└ OpenSky: una aeronave en el aire ahora (centro de Argentina)
+  GET https://opensky-network.org/api/states/all?lamin=-40&lomin=-66&lamax=-30&lomax=-56 [200 OK, 4.08kB, 817ms]
+  √  HTTP 200 de OpenSky
+  √  Hay al menos una aeronave en el aire con callsign
+  ┌
+  │ 'Aeronave elegida', 'e0b211', 'ARG1985'
+  └
+
+└ Alta de vuelo con esa aeronave -> 201
+  POST http://localhost:8080/api/v1/flights [201 Created, 747B, 1966ms]
+  √  HTTP 201
+  √  SCHEDULED con la aeronave asignada
+
+└ Alta: misma aeronave con otro callsign -> 201
+  POST http://localhost:8080/api/v1/flights [201 Created, 746B, 79ms]
+  √  HTTP 201
+
+└ USER no puede forzar la verificación -> 403
+  POST http://localhost:8080/api/v1/flights/7/departure-check [403 Forbidden, 536B, 68ms]
+  √  HTTP 403
+  √  code = ACCESS_DENIED
+
+└ Otro callsign: no es este vuelo -> OTHER_FLIGHT
+  POST http://localhost:8080/api/v1/flights/8/departure-check [200 OK, 695B, 4.4s]
+  √  HTTP 200
+  √  result = OTHER_FLIGHT y sigue SCHEDULED
+
+└ Verificar la salida real -> DEPARTURE_DETECTED y CLOSED
+  POST http://localhost:8080/api/v1/flights/7/departure-check [200 OK, 724B, 403ms]
+  √  HTTP 200
+  √  result = DEPARTURE_DETECTED
+  √  El vuelo quedó CLOSED
+  √  OpenSky lo mostró en el aire
+  √  Se registró el despegue
+
+└ user1 registra un pasajero -> 201
+  POST http://localhost:8080/api/v1/passengers [201 Created, 706B, 660ms]
+  √  HTTP 201
+
+└ Reservar en el vuelo que ya despegó -> 409
+  POST http://localhost:8080/api/v1/reservations [409 Conflict, 655B, 430ms]
+  √  HTTP 409
+  √  code = FLIGHT_NOT_RESERVABLE (la salida programada todavía es futura)
+
+└ Callsign sin icao24 -> 400
+  POST http://localhost:8080/api/v1/flights [400 Bad Request, 671B, 90ms]
+  √  HTTP 400
+  √  code = INVALID_AIRCRAFT_REFERENCE
+
+└ Alta de vuelo sin aeronave -> 201
+  POST http://localhost:8080/api/v1/flights [201 Created, 738B, 150ms]
+  √  HTTP 201
+
+└ Vuelo sin aeronave no se verifica -> 409
+  POST http://localhost:8080/api/v1/flights/9/departure-check [409 Conflict, 648B, 84ms]
+  √  HTTP 409
+  √  code = FLIGHT_NOT_TRACKABLE
+
+┌─────────────────────────┬────────────────────┬────────────────────┐
+│                         │           executed │             failed │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              iterations │                  1 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│                requests │                 13 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│            test-scripts │                 13 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│      prerequest-scripts │                  2 │                  0 │
+├─────────────────────────┼────────────────────┼────────────────────┤
+│              assertions │                 24 │                  0 │
+├─────────────────────────┴────────────────────┴────────────────────┤
+│ total run duration: 12.4s                                         │
+├───────────────────────────────────────────────────────────────────┤
+│ total data received: 10.14kB (approx)                             │
+├───────────────────────────────────────────────────────────────────┤
+│ average response time: 865ms [min: 68ms, max: 4.4s, s.d.: 1177ms] │
+└───────────────────────────────────────────────────────────────────┘

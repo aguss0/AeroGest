@@ -16,6 +16,10 @@ La decisión original hacía que Reservation Service guardara usuarios y emitier
 ## Consecuencias
 - Desaparecen `users`, `/auth/login`, `/auth/register`, `JWT_SECRET` e `INTERNAL_API_KEY`.
 - El cliente `aerogest-api` habilita *password grant* solo para demostración y Postman.
+- Actualización 2026-11-04: Swagger (en el gateway, `:8080`) inicia sesión con el flujo OIDC estándar,
+  *authorization code* + PKCE (`S256` obligatorio en el cliente), así la contraseña se escribe solo
+  en Keycloak. Los `redirectUris` del cliente pasan a incluir `http://localhost:8080/*`. Keycloak
+  dejó de estar "pendiente de confirmar": el enunciado 2026 lo exige.
 - El *issuer* se fija con `KC_HOSTNAME=http://localhost:8180` para que los tokens sean válidos tanto desde el host como entre contenedores.
 - Las pruebas automatizadas usan tokens simulados (`spring-security-test`); Keycloak se usa para la demo y la colección Postman.
 - Keycloak en modo `start-dev` no persiste datos: el realm se reimporta en cada arranque limpio.

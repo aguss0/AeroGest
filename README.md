@@ -88,7 +88,10 @@ El realm `aerogest` (`keycloak/aerogest-realm.json`) se importa en cada arranque
 | `user1`, `user2` | USER | `DEMO_USER_PASSWORD` del `.env` |
 | cliente `reservation-service` | SERVICE | `RESERVATION_CLIENT_SECRET` del `.env` (client credentials) |
 
-Para probar en Swagger, este script pide el token y lo copia al portapapeles (funciona desde cualquier carpeta):
+En Swagger (`http://localhost:8080/swagger-ui.html`) lo más directo es **Authorize → keycloak**
+(client_id `aerogest-api`, sin secreto): abre la página de login de Keycloak (OIDC, authorization
+code + PKCE) y vuelve con el token. Como alternativa, este script pide el token y lo copia al
+portapapeles (funciona desde cualquier carpeta) para pegarlo en **bearerAuth**:
 
 ```powershell
 .\scripts\get-token.ps1               # user1; también -User user2 o -User admin
@@ -163,4 +166,5 @@ una indica qué comando de Docker ejecutar antes y después.
 | `docs/` | Arquitectura, ADRs, trazabilidad, evidencias y guion de defensa |
 
 ## Pendiente
-- Renderizar como imagen los diagramas C4 (definidos en PlantUML en la propuesta v2) para la entrega.
+- Generar las imágenes de los diagramas de la propuesta (fuentes e instrucciones en [docs/diagramas/](docs/diagramas/)).
+- Completar la Sección 01 de la propuesta (equipo, comisión, integrantes, contacto) y el reparto del guion de defensa.

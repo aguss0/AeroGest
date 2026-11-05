@@ -1,0 +1,18 @@
+erDiagram
+    PASSENGERS ||--o{ RESERVATIONS : "tiene"
+    PASSENGERS {
+        bigint id PK
+        varchar owner_user_id
+        varchar first_name
+        varchar last_name
+        varchar document_type
+        varchar document_number
+    }
+    RESERVATIONS {
+        uuid id PK
+        bigint passenger_id FK
+        bigint flight_id
+        varchar created_by_user_id
+        varchar status
+        bigint version
+    }

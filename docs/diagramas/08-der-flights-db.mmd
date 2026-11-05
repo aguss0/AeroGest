@@ -1,0 +1,21 @@
+erDiagram
+    FLIGHTS ||--o{ SEAT_ALLOCATIONS : "tiene"
+    FLIGHTS {
+        bigint id PK
+        varchar code UK
+        varchar origin
+        varchar destination
+        timestamptz departure_at
+        timestamptz arrival_at
+        int capacity
+        int seats_taken
+        varchar status
+        bigint version
+    }
+    SEAT_ALLOCATIONS {
+        uuid reservation_id PK
+        bigint flight_id FK
+        varchar status
+        timestamptz allocated_at
+        timestamptz released_at
+    }

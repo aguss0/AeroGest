@@ -46,6 +46,11 @@ spring:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    # "Authorize" -> keycloak: login OIDC real en Keycloak (authorization code + PKCE), cliente público
+    oauth:
+      client-id: aerogest-api
+      use-pkce-with-authorization-code-grant: true
+      scopes: openid
     urls:
       - name: Flight Service
         url: /api-docs/flights

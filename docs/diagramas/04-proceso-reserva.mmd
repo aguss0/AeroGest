@@ -1,0 +1,22 @@
+flowchart TD
+    start([Usuario solicita reserva]) --> P1[P1 Token Keycloak + POST /reservations al gateway]
+    P1 --> G{P1b Gateway: ¿token y rol<br/>válidos para la ruta?}
+    G -- no --> E0([401 / 403 del gateway])
+    G -- sí --> P2{P2 ¿Pasajero existe<br/>y es propio?}
+    P2 -- no --> E1([403 / 404])
+    P2 -- sí --> P3{P3 ¿Ya tiene reserva<br/>activa en el vuelo?}
+    P3 -- sí --> E2([409 DUPLICATE_ACTIVE_RESERVATION])
+    P3 -- no --> P4[P4 Guardar reserva PENDING]
+    P4 --> P5[P5 Pedir plaza a Flight<br/>con reservationId]
+    P5 --> P6[P6 UPDATE atómico de plazas en Flight]
+    P6 --> D1{D1 Resultado}
+    D1 -- plaza asignada --> P7[P7 PENDING → CONFIRMED]
+    P7 --> OK([201 CONFIRMED])
+    D1 -- rechazo definitivo --> P8[P8 PENDING → REJECTED]
+    P8 --> E3([409 NO_AVAILABILITY /<br/>FLIGHT_NOT_RESERVABLE, 404])
+    D1 -- resultado incierto --> P9{P9 ¿Se pudo<br/>liberar la plaza?}
+    P9 -- sí --> P9a[PENDING → REJECTED]
+    P9 -- no --> P9b[Queda PENDING]
+    P9a --> E4([503 / 504 / 502])
+    P9b --> E4
+    P9b -. cada 1 min, > 5 min .-> P10[P10 Job: liberar plaza<br/>y marcar REJECTED]

@@ -1,8 +1,11 @@
-﻿# smoke-reservations.ps1 -IncludeFailures - 2026-11-01 18:34 - sistema en Docker (docker compose --profile apps)
+﻿# smoke-reservations.ps1 -IncludeFailures - 2026-11-04 11:43 - sistema en Docker (docker compose up -d), todo por el gateway :8080
+
 
 == Seguridad (RN-09) ==
 PASS  Sin token -> 401 (HTTP 401 UNAUTHENTICATED)
 PASS  El rol SERVICE no usa la API pública -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  El gateway no publica la API interna, ni para el rol SERVICE -> 403 (HTTP 403 ACCESS_DENIED)
+PASS  El gateway enruta a Flight con un token USER -> 200 (HTTP 200 )
 
 == Pasajeros (RN-14) ==
 PASS  user1 registra a Ana -> 201 (HTTP 201 )
@@ -31,7 +34,7 @@ PASS  La plaza no se liberó dos veces (sigue en 2) (2)
 PASS  Tras cancelar, Ana puede volver a reservar -> 201 (HTTP 201 )
 
 == Vuelo que no admite reservas (RN-04) ==
-PASS  ADMIN cancela el vuelo -> 200 (HTTP 200 RSV7520B)
+PASS  ADMIN cancela el vuelo -> 200 (HTTP 200 RSV2555B)
 PASS  Reservar en un vuelo cancelado -> 409 (HTTP 409 FLIGHT_NOT_RESERVABLE)
 PASS  La reserva quedó REJECTED (REJECTED)
 
@@ -52,5 +55,4 @@ PASS  Reservar con Flight congelado -> 504 (HTTP 504 FLIGHT_SERVICE_TIMEOUT)
 PASS  La reserva no quedó confirmada (PENDING) (PENDING)
   Las reservas PENDING de esta sección las resuelve el job (REJECTED) en unos 6 minutos.
 
-Resultado: 35 correctas, 0 fallidas
-
+Resultado: 37 correctas, 0 fallidas

@@ -1,0 +1,13 @@
+﻿# common - .\mvnw.cmd install - 2026-11-04 10:00
+
+[INFO] Building aerogest-common 1.0.0
+[INFO] Running ar.edu.utn.frc.aerogest.common.autoconfigure.AerogestCommonAutoConfigurationTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 3.923 s -- in ar.edu.utn.frc.aerogest.common.autoconfigure.AerogestCommonAutoConfigurationTest
+[INFO] Running ar.edu.utn.frc.aerogest.common.error.ProblemResponsesTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.108 s -- in ar.edu.utn.frc.aerogest.common.error.ProblemResponsesTest
+[INFO] Running ar.edu.utn.frc.aerogest.common.security.KeycloakRealmRoleConverterTest
+[INFO] Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.091 s -- in ar.edu.utn.frc.aerogest.common.security.KeycloakRealmRoleConverterTest
+[INFO] Running ar.edu.utn.frc.aerogest.common.web.CorrelationIdFilterTest
+[INFO] Tests run: 2, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.273 s -- in ar.edu.utn.frc.aerogest.common.web.CorrelationIdFilterTest
+[INFO] Tests run: 11, Failures: 0, Errors: 0, Skipped: 0
+[INFO] BUILD SUCCESS

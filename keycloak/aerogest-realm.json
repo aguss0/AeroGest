@@ -21,8 +21,9 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["http://localhost:8081/*", "http://localhost:8082/*"],
-      "webOrigins": ["+"]
+      "redirectUris": ["http://localhost:8080/*", "http://localhost:8081/*", "http://localhost:8082/*"],
+      "webOrigins": ["+"],
+      "attributes": { "pkce.code.challenge.method": "S256" }
     },
     {
       "clientId": "reservation-service",

@@ -1,0 +1,8 @@
+stateDiagram-v2
+    direction LR
+    [*] --> PENDING
+    PENDING --> CONFIRMED: Flight asignó la plaza
+    PENDING --> REJECTED: Flight la negó / falla / reconciliación
+    CONFIRMED --> CANCELLED: cancelación (libera la plaza)
+    CANCELLED --> [*]
+    REJECTED --> [*]

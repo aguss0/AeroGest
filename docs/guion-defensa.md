@@ -2,6 +2,21 @@
 
 Duración estimada: 20 minutos de presentación y demostración, más preguntas.
 
+## Reparto entre integrantes
+
+La rúbrica (PRE-01) pide que **todos** puedan explicar cualquier parte, no solo la que presentan.
+Cada integrante presenta un bloque y además prepara las preguntas probables de otro bloque.
+
+| Bloque | Presenta | Prepara además las preguntas de |
+|---|---|---|
+| 1. Problema y 2. Arquitectura (gateway, trusted zone, JAR común, OpenSky) | **[COMPLETAR: integrante]** | 3. Proceso de reserva |
+| 3. Proceso de reserva (consistencia, concurrencia, compensación) | **[COMPLETAR: integrante]** | 4. Demostración |
+| 4. Demostración en vivo (pasos 1 a 12) | **[COMPLETAR: integrante]** | 5 y 6. Calidad y limitaciones |
+| 5. Calidad y pruebas, 6. Limitaciones | **[COMPLETAR: integrante]** | 1 y 2. Problema y arquitectura |
+
+Si son menos de cuatro, unir los bloques 5 y 6 con el 1 y 2. Ensayo: cada uno responde en voz alta
+dos preguntas de la lista final que no sean de su bloque.
+
 ## Antes de la defensa (15 minutos antes)
 1. Abrir Docker Desktop y ejecutar `docker compose up -d`. Keycloak tarda hasta 3 minutos.
 2. Verificar que responden `http://localhost:8180/realms/aerogest` y `http://localhost:8080/actuator/health`.
@@ -9,6 +24,8 @@ Duración estimada: 20 minutos de presentación y demostración, más preguntas.
 4. Dejar abiertos: este guion, `docs/arquitectura.md` (diagramas), Postman con la colección importada
    y el entorno completo, y una terminal con `docker compose logs -f api-gateway reservation-service flight-service`.
 5. Ensayo rápido: `.\scripts\smoke-reservations.ps1` debe terminar con 0 fallidas.
+6. Para mostrar el login OIDC: en Swagger, *Authorize → keycloak* (client_id `aerogest-api`) abre la
+   página de Keycloak y vuelve con el token (authorization code + PKCE).
 
 ## 1. El problema (2 min)
 - AeroGest administra vuelos y reservas. El desafío no es el CRUD: es **no confirmar reservas inválidas**

@@ -1,0 +1,53 @@
+﻿# Arranque desde cero - 2026-11-04 11:34
+
+Bases y realm vacíos: se borran los volúmenes y se reconstruyen todas las imágenes.
+
+> docker compose down -v
+   Volume aerogest_flights-data Removing 
+   Volume aerogest_reservations-data Removing 
+   Network aerogest_default Removing 
+   Volume aerogest_flights-data Removed 
+   Volume aerogest_reservations-data Removed 
+   Network aerogest_default Removed 
+
+> docker compose up -d --build
+  #27 naming to docker.io/library/aerogest-api-gateway:latest 0.0s done
+  #47 naming to docker.io/library/aerogest-reservation-service:latest 0.0s done
+  #48 naming to docker.io/library/aerogest-flight-service:latest 0.0s done
+   Image aerogest-flight-service Built 
+   Image aerogest-reservation-service Built 
+   Image aerogest-api-gateway Built 
+   Container aerogest-flights-db Started 
+   Container aerogest-keycloak Started 
+   Container aerogest-reservations-db Started 
+   Container aerogest-flights-db Healthy 
+   Container aerogest-reservations-db Healthy 
+   Container aerogest-flight-service Started 
+   Container aerogest-reservation-service Started 
+   Container aerogest-api-gateway Started 
+  (build + start: 42 s)
+
+Listo después del up: Keycloak con el realm importado a los 284 s; gateway UP 9 s después; los dos servicios responden por el gateway 18 s después.
+
+> docker compose ps
+  NAME                           STATUS                   PORTS
+  aerogest-api-gateway           Up 5 minutes             0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp
+  aerogest-flight-service        Up 5 minutes             8081/tcp
+  aerogest-flights-db            Up 5 minutes (healthy)   0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
+  aerogest-keycloak              Up 5 minutes             0.0.0.0:8180->8080/tcp, [::]:8180->8080/tcp
+  aerogest-reservation-service   Up 5 minutes             8082/tcp
+  aerogest-reservations-db       Up 5 minutes (healthy)   0.0.0.0:5434->5432/tcp, [::]:5434->5432/tcp
+
+## Topología: solo el gateway (y la infraestructura) publican puertos
+GET http://localhost:8081/actuator/health -> sin conexión
+GET http://localhost:8082/actuator/health -> sin conexión
+GET http://localhost:8080/actuator/health -> 200
+
+## Login OIDC en Swagger (authorization code + PKCE)
+securitySchemes del documento de Flight: bearerAuth, keycloak
+keycloak: type=oauth2, authorizationUrl=http://localhost:8180/realms/aerogest/protocol/openid-connect/auth, tokenUrl=http://localhost:8180/realms/aerogest/protocol/openid-connect/token
+swagger-config del gateway: oauth2RedirectUrl=http://localhost:8080/swagger-ui/oauth2-redirect.html
+swagger-initializer.js: {"clientId":"aerogest-api","scopes":"openid","usePkceWithAuthorizationCodeGrant":true})
+Keycloak /auth con redirect_uri del gateway y PKCE S256 -> 200, muestra el formulario de login: True
+Keycloak /auth con un redirect_uri no registrado -> 400 (rechazado)
+Keycloak /auth sin PKCE -> 302 a oauth2-redirect.html?error=invalid_request&error_description=Missing parameter: code_challenge_method (rechazado: el cliente exige PKCE S256)
