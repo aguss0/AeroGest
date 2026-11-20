@@ -166,5 +166,8 @@ una indica qué comando de Docker ejecutar antes y después.
 | `docs/` | Arquitectura, ADRs, trazabilidad, evidencias y guion de defensa |
 
 ## Pendiente
-- Generar las imágenes de los diagramas de la propuesta (fuentes e instrucciones en [docs/diagramas/](docs/diagramas/)).
 - Completar la Sección 01 de la propuesta (equipo, comisión, integrantes, contacto) y el reparto del guion de defensa.
+- Opcional: imágenes de los diagramas Mermaid de la propuesta (los C4 ya están en PNG en [docs/diagramas/](docs/diagramas/)).
+
+Resumen de cumplimiento contra el enunciado y la rúbrica: [docs/resumen-cumplimiento.md](docs/resumen-cumplimiento.md).
+Guion de la presentación oral (3 integrantes, con diagrama de flujo): [docs/presentacion-3-integrantes.md](docs/presentacion-3-integrantes.md).

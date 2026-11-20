@@ -1,0 +1,37 @@
+sequenceDiagram
+    autonumber
+    actor U as user1 (Postman / Swagger)
+    participant KC as Keycloak :8180
+    participant GW as API Gateway :8080
+    participant RS as Reservation Service
+    participant RDB as reservations_db
+    participant FS as Flight Service
+    participant FDB as flights_db
+
+    U->>KC: login OIDC (password grant / auth code + PKCE)
+    KC-->>U: JWT (rol USER, sub)
+    U->>GW: POST /api/v1/reservations {passengerId, flightId} + Bearer JWT
+    Note over GW: SecurityConfig: valida firma (JWKS) y rol por ruta
+    GW->>RS: reenvía + X-Correlation-Id
+    Note over RS: valida el JWT otra vez · pasajero propio (sub)
+    RS->>RDB: INSERT reserva PENDING (tx corta)
+    RS->>KC: client_credentials (token SERVICE, cacheado)
+    RS->>FS: POST /internal/v1/flights/{id}/seat-allocations {reservationId}
+    FS->>FDB: UPDATE flights SET seats_taken+1 WHERE seats_taken < capacity
+    FDB-->>FS: 1 fila
+    FS-->>RS: 201 plaza asignada
+    RS->>RDB: UPDATE reserva → CONFIRMED
+    RS-->>GW: 201 CONFIRMED
+    GW-->>U: 201 CONFIRMED + X-Correlation-Id
+
+    alt Curso alternativo: sin plaza / vuelo no reservable
+        FDB-->>FS: 0 filas
+        FS-->>RS: 409 NO_AVAILABILITY | FLIGHT_NOT_RESERVABLE
+        RS->>RDB: reserva → REJECTED
+        RS-->>U: 409
+    else Curso alternativo: Flight caído o lento
+        RS--xFS: sin respuesta (connect 2 s / read 3 s)
+        RS->>FS: DELETE seat-allocations/{reservationId} (idempotente)
+        RS->>RDB: reserva → REJECTED (o queda PENDING → job cada 1 min)
+        RS-->>U: 503 / 504
+    end

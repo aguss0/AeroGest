@@ -23,7 +23,9 @@ class HttpOpenSkyClientTest {
     @BeforeEach
     void setUp() throws Exception {
         server = new FakeOpenSkyServer();
-        client = clientFor(server.baseUrl(), 1000);
+        // Margen amplio: con la máquina cargada (Keycloak, Testcontainers) 1 s llegó a dar un falso
+        // OPENSKY_TIMEOUT. El caso de timeout real usa su propio cliente de 300 ms.
+        client = clientFor(server.baseUrl(), 5000);
     }
 
     @AfterEach

@@ -1,0 +1,63 @@
+flowchart TB
+    %% Curso normal = columna izquierda, verde, flechas gruesas.
+    %% Cursos alternativos = cajas rojas punteadas a la derecha: se mencionan rápido.
+
+    subgraph A["Alumno A · ≈6 min"]
+        direction TB
+        N0(["Inicio: el problema<br/>no confirmar reservas inválidas"])
+        N1["C1 y C2<br/>gateway · 2 servicios · 2 bases<br/>Keycloak · OpenSky"]
+        N2["Docker<br/>docker compose up -d --build<br/>docker compose ps: los servicios<br/>no publican puerto, solo el gateway"]
+        N3{"Login OIDC en Keycloak<br/>Swagger Authorize · Postman 00<br/>¿JWT válido y con rol?"}
+        X1["401 sin token<br/>403 rol insuficiente<br/>/internal/** denegado"]
+    end
+
+    subgraph B["Alumno B · ≈8 min"]
+        direction TB
+        N4["ADMIN crea el vuelo<br/>POST /api/v1/flights · 201<br/>Postman 01"]
+        N5["user1 registra a Ana<br/>POST /api/v1/passengers · 201<br/>Postman 02"]
+        N6["user1 reserva<br/>POST /api/v1/reservations<br/>Postman 03"]
+        N8{"Reservation: ¿pasajero propio<br/>y sin reserva activa?<br/>guarda PENDING"}
+        N9{"Flight: UPDATE atómico<br/>¿seats_taken &lt; capacity?"}
+        N10["CONFIRMED · 201<br/>plazas 2 → 1"]
+        N11{"user1 cancela · Postman 04<br/>¿está CONFIRMED?"}
+        N11b["CANCELLED · 200<br/>plazas 1 → 2"]
+        X2["400 datos inválidos<br/>403 pasajero ajeno<br/>409 reserva duplicada"]
+        X3["409 sin plaza o vuelo cerrado<br/>reserva REJECTED<br/>Postman 05 y 06"]
+        X4["503 caído · 504 lento<br/>libera plaza y REJECTED<br/>o PENDING → job 1 min<br/>Postman 07 y 08"]
+        X5["409 cancelar dos veces<br/>la plaza vuelve una sola vez"]
+    end
+
+    subgraph C["Alumno C · ≈6 min"]
+        direction TB
+        N12{"OpenSky: ¿el avión está<br/>en el aire con su callsign?<br/>Postman 09"}
+        N12b["Vuelo CLOSED<br/>reservar da 409"]
+        N13["Pruebas: 248 automáticas<br/>smoke 32/32 · trazabilidad"]
+        N14(["Cierre y preguntas"])
+        X6["OpenSky caído, 429 o JSON raro<br/>no cambia nada, rige el horario"]
+        X7["10 reservas simultáneas<br/>por la última plaza<br/>1 confirmada · 9 con 409"]
+    end
+
+    N0 ==> N1 ==> N2 ==> N3
+    N3 ==>|sí| N4 ==> N5 ==> N6 ==> N8
+    N8 ==>|sí| N9
+    N9 ==>|"1 fila"| N10 ==> N11
+    N11 ==>|sí| N11b ==> N12
+    N12 ==>|sí| N12b ==> N13 ==> N14
+
+    N3 -.->|no| X1
+    N8 -.->|no| X2
+    N9 -.->|"0 filas"| X3
+    N9 -.->|"sin respuesta"| X4
+    N11 -.->|no| X5
+    N12 -.->|"falla"| X6
+    N13 -.->|"demo de concurrencia"| X7
+
+    classDef normal fill:#e3f4e6,stroke:#2e7d32,stroke-width:2px,color:#1b3a1e
+    classDef decision fill:#fff8e1,stroke:#2e7d32,stroke-width:2px,color:#3a2e00
+    classDef alt fill:#fdecea,stroke:#c62828,stroke-dasharray:5 4,color:#5a1414
+    classDef ends fill:#2e7d32,stroke:#1b5e20,color:#ffffff
+    class N1,N2,N4,N5,N6,N10,N11b,N12b,N13 normal
+    class N3,N8,N9,N11,N12 decision
+    class N0,N14 ends
+    class X1,X2,X3,X4,X5,X6,X7 alt
+    linkStyle 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14 stroke:#2e7d32,stroke-width:3px

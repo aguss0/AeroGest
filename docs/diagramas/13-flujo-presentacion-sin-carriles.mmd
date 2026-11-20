@@ -1,0 +1,39 @@
+flowchart TB
+    %% Igual que 12-flujo-presentacion-compacto.mmd pero sin carriles (los subgrafos quedan invisibles solo para mantener las 3 filas).
+    %% Verde = curso normal · amarillo = punto de decisión · rojo punteado = curso alternativo.
+
+    subgraph A[" "]
+        direction LR
+        a1(["Problema"]) ==> a2["C1 · C2"] ==> a3["Docker<br/>compose up"] ==> a4["¿Login OK?<br/>Keycloak"]
+        a4 -.-> ax["401 / 403"]
+    end
+
+    subgraph B[" "]
+        direction LR
+        b1["Crear vuelo<br/>Postman 01"] ==> b2["Pasajero<br/>Postman 02"] ==> b3["¿Reserva válida?<br/>PENDING"] ==> b4["¿Hay plaza?<br/>UPDATE atómico"] ==> b5["CONFIRMED<br/>2 → 1 plazas"] ==> b6["¿Cancelable?<br/>Postman 04"]
+        b3 -.-> bx1["403 ajeno · 409 duplicada"]
+        b4 -.-> bx2["409 sin plaza · 503 / 504"]
+        b6 -.-> bx3["409 2.ª vez"]
+    end
+
+    subgraph C[" "]
+        direction LR
+        c1["¿Despegó?<br/>OpenSky"] ==> c2["Vuelo CLOSED<br/>Postman 09"] ==> c3["248 tests<br/>smoke 32/32"] ==> c4(["Cierre"])
+        c1 -.-> cx["falla → sin cambios"]
+    end
+
+    A ==> B ==> C
+
+    classDef normal fill:#e3f4e6,stroke:#2e7d32,stroke-width:2px,color:#1b3a1e
+    classDef decision fill:#fff3c4,stroke:#2e7d32,stroke-width:2px,color:#3a2e00
+    classDef alt fill:#fdecea,stroke:#c62828,stroke-dasharray:4 3,color:#5a1414
+    classDef ends fill:#2e7d32,stroke:#1b5e20,color:#ffffff
+    class a2,a3,b1,b2,b5,c2,c3 normal
+    class a4,b3,b4,b6,c1 decision
+    class a1,c4 ends
+    class ax,bx1,bx2,bx3,cx alt
+    style A fill:transparent,stroke:transparent
+    style B fill:transparent,stroke:transparent
+    style C fill:transparent,stroke:transparent
+    linkStyle 0,1,2,4,5,6,7,8,12,13,14,16,17 stroke:#2e7d32,stroke-width:3px
+    linkStyle 3,9,10,11,15 stroke:#c62828,stroke-width:1.5px

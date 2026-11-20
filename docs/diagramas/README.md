@@ -12,6 +12,10 @@ para generar la "representación gráfica" que piden las secciones 04, 05, 06 y 
 | `06-c4-contenedores.puml` | 06 — C4 nivel 2 | PlantUML (C4-PlantUML) |
 | `08-der-flights-db.mmd` | 08 — DER de `flights_db` | Mermaid |
 | `08-der-reservations-db.mmd` | 08 — DER de `reservations_db` | Mermaid |
+| `10-flujo-presentacion.mmd` (+ `.png`) | Presentación oral: curso normal y alternativos | Mermaid |
+| `11-secuencia-reserva.mmd` (+ `.png`) | Presentación oral: secuencia de la reserva | Mermaid |
+| `12-flujo-presentacion-compacto.mmd` (+ `.png`) | Presentación oral: flujo para la diapositiva | Mermaid |
+| `13-flujo-presentacion-sin-carriles.mmd` (+ `.png`) | Presentación oral: el mismo flujo, sin los carriles por alumno | Mermaid |
 
 ## Cómo generar las imágenes
 
